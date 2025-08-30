@@ -1,2 +1,2 @@
 # Vanmoof
-HACS Custom Component to connect to Vanmoof ble
+HACS Custom Component to connect to Vanmoof bike by BLE
