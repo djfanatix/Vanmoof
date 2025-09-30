@@ -3,7 +3,6 @@ import asyncio
 from bleak import BleakClient, BleakScanner
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.components.sensor import SensorDeviceClass
 from .sx_client import SXClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,11 +50,6 @@ class VanMoofBatterySensor(SensorEntity):
     def state(self):
         """Return the current battery level."""
         return self._state
-    
-    @property
-    def device_class(self):
-        """Return the device class."""
-        return SensorDeviceClass.BATTERY  # Use the updated constant from SensorDeviceClass
 
     @property
     def unit_of_measurement(self):
@@ -108,12 +102,7 @@ class VanMoofModuleLevelSensor(SensorEntity):
     def state(self):
         """Return the current module level."""
         return self._state
-    
-    @property
-    def device_class(self):
-        """Return the device class."""
-        return SensorDeviceClass.BATTERY  # Use the updated constant from SensorDeviceClass
-    
+
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement."""

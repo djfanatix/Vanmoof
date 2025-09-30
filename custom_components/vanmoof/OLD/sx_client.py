@@ -43,40 +43,71 @@ class SXClient:
         except Exception as e:
             _LOGGER.error(f"Failed to read characteristic {characteristic_uuid}: {e}")
             raise
-        
-# we try to read a parameter to be sure, the connection is ok
-    async def get_discovery(self) -> int: 
+
+    async def _write(self, characteristic_uuid, data: bytes) -> None:
+        try:
+            nonce = await self._get_nonce()
+            payload = self._bike_profile.build_encrypted_payload(nonce, data)
+            await bleak_utils.write_to_characteristic(
+                self._gatt_client,
+                characteristic_uuid,
+                payload,
+            )
+        except Exception as e:
+            _LOGGER.error(f"Failed to write to characteristic {characteristic_uuid}: {e}")
+            raise
+
+    async def authenticate(self) -> None:
+        """
+        Attempts to authenticate with the bike by performing the nonce challenge.
+        """
+        try:
+            nonce = await self._get_nonce()
+            payload = self._bike_profile.build_authentication_payload(nonce)
+            await bleak_utils.write_to_characteristic(
+                self._gatt_client,
+                self._bike_profile.Bike.FUNCTIONS,
+                payload,
+            )
+            # Verify authentication by reading a known characteristic after the payload is sent
+            result = await self._read(self._bike_profile.Bike.PARAMETERS, needs_decryption=False)
+            if not result:
+                _LOGGER.error("Authentication failed: No response after sending authentication payload.")
+                raise Exception("Authentication failed.")
+            _LOGGER.info("Authentication successful.")
+        except Exception as e:
+            _LOGGER.error(f"Authentication failed: {e}")
+            raise
+
+    async def get_battery_level(self) -> int: #call parameters later on
+        """
+        **Must be authenticated to call**
+
+        Gets the battery level of the bike out of 100.
+        """
         try:
             result = await self._read(self._bike_profile.Bike.PARAMETERS)
-
             _LOGGER.debug(f"Battery data: {result}")
             battery_level = int(result[5])
+            _LOGGER.info(f"Battery level: {battery_level}%")
+            module_level = int(result[6])
+            _LOGGER.info(f"Module level: {module_level}%")
+            #speed = response[4]
+            # battery_level = response[5] 
+            
+             # Adjust based on actual response structure
             
             return battery_level
         except Exception as e:
-            _LOGGER.error(f"Failed to get parameters: {e}")
-            raise
-
-    async def get_parameters(self) -> int: 
-        try:
-            result = await self._read(self._bike_profile.Bike.PARAMETERS)
-
-            _LOGGER.debug(f"Battery data: {result}")
-            battery_level = int(result[5])
-            _LOGGER.debug(f"Battery level: {battery_level}%")
-            module_level = int(result[6])
-            _LOGGER.debug(f"Module level: {module_level}%")
-            
-            return {
-                "battery_level": battery_level,
-                "module_level": module_level
-                }
-        except Exception as e:
-            _LOGGER.error(f"Failed to get parameters: {e}")
+            _LOGGER.error(f"Failed to get battery level: {e}")
             raise
 
     async def get_lock_state(self) -> LockState:
+        """
+        **Must be authenticated to call**
 
+        Gets the lock state of the bike.
+        """
         try:
             result = await self._read(self._bike_profile.Defense.LOCK_STATE)
             lock_state = LockState(result[0])
@@ -87,7 +118,11 @@ class SXClient:
             raise
 
     async def get_distance_travelled(self) -> float:
+        """
+        **Must be authenticated to call**
 
+        Gets the distance travelled of the bike in kilometers.
+        """
         try:
             result = await self._read(self._bike_profile.Movement.DISTANCE)
             distance_km = int.from_bytes(result, "little") / 10  # Convert hectometers to kilometers
