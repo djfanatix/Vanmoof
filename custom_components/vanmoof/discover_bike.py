@@ -1,59 +1,63 @@
 import logging
 from bleak import BleakScanner, BleakClient
 from .sx_client import SXClient
-import asyncio
+from .sx3_client import SX3Client
 
 _LOGGER = logging.getLogger(__name__)
 
+def _is_sx3_bike(vanmoof_type: str | None) -> bool:
+    if not vanmoof_type:
+        return False
+    value = vanmoof_type.upper()
+    return any(token in value for token in ("SX3", "S3", "X3"))
+
 class DiscoverBike:
     @staticmethod
-    async def query(mac_address: str, polling_interval: int, encryption_key: str):
+    async def query(
+        mac_address: str,
+        polling_interval: int,
+        encryption_key: str,
+        user_key_id: int | None = None,
+        vanmoof_type: str | None = None,
+    ):
         """Discover the nearby bike using the MAC address and connect to it."""
         _LOGGER.debug(f"Starting bike discovery process for MAC address {mac_address} with polling interval {polling_interval} seconds...")
 
         try:
-            while True:
-                ## Discover devices based on known service UUIDs
-                devices = await BleakScanner.discover(
-                )
-                _LOGGER.debug(f"Discovered {len(devices)} devices.")
-                
-                if not devices:
-                    _LOGGER.warning("No devices found during discovery.")
-                    await asyncio.sleep(polling_interval)  # Wait before retrying
-                    continue  # Retry if no devices are found
+            devices = await BleakScanner.discover()
+            _LOGGER.debug(f"Discovered {len(devices)} devices.")
 
-               ## Loop through discovered devices to find one matching the provided MAC address
-                for device in devices:
-                    _LOGGER.debug(f"Discovered device: {device.name} ({device.address})")
+            if not devices:
+                _LOGGER.warning("No devices found during discovery.")
+                return None, None
 
-                    if device.address.lower() == mac_address.lower():
-                        # Found the device with the MAC address
-                        _LOGGER.info(f"Found bike with MAC address: {device.name} ({device.address})")
-                        
-                        # Initialize the BleakClient with the discovered device
-                        bleak_client = BleakClient(device)
-                        await bleak_client.connect()
-                        _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
+            ## Loop through discovered devices to find one matching the provided MAC address
+            for device in devices:
+                _LOGGER.debug(f"Discovered device: {device.name} ({device.address})")
 
-                    ## HERE we have to make an if-then depending on the vanmoof type and 
-                        # Initialize the SXClient with the BleakClient
-                        sx_client = SXClient(bleak_client, encryption_key)
+                if device.address.lower() == mac_address.lower():
+                    # Found the device with the MAC address
+                    _LOGGER.info(f"Found bike with MAC address: {device.name} ({device.address})")
 
-                        ## Attempt to authenticate #not needed for Electrified S, so not implemented
-                        # await sx_client.authenticate()
+                    bleak_client = BleakClient(device)
+                    await bleak_client.connect()
+                    _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
-                        ## Get the battery level, this only for debug
-                        battery_level = await sx_client.get_discovery()
+                    if _is_sx3_bike(vanmoof_type):
+                        sx_client = SX3Client(bleak_client, encryption_key, user_key_id)
+                        await sx_client.authenticate()
+                        battery_level = await sx_client.get_battery_level()
+                        _LOGGER.info(f"SX3 bike battery level: {battery_level}%")
+                        return device, "SX3Client"
 
-                        _LOGGER.info(f"Battery level: {battery_level}%")
+                    sx_client = SXClient(bleak_client, encryption_key)
+                    battery_level = await sx_client.get_discovery()
+                    _LOGGER.info(f"SX bike battery level: {battery_level}%")
+                    return device, "SXClient"
 
-                        return device, "SXClient"  # Return the device, client type, and battery level
-
-                ## If no matching device is found, retry after waiting for the polling interval
-                _LOGGER.warning(f"No bike found with MAC address: {mac_address}")
-                await asyncio.sleep(polling_interval)  # Wait before retrying
+            _LOGGER.warning(f"No bike found with MAC address: {mac_address}")
+            return None, None
 
         except Exception as e:
             _LOGGER.error(f"Error during bike discovery: {e}")
-            return None, None, None
+            return None, None

@@ -299,13 +299,79 @@ class SX3Client:
         """
         **Must be authenticated to call**
 
-        Gets the light mode. TODO: parse output
+        Gets the light mode.
 
         :raises ``bleak.exc.BleakError``: if the client is not authenticated.
 
-        :return: N/A
+        :return: The light mode as an integer.
         """
         result = await self._read(
-            self._bike_profile.Movement.SPEED,
+            self._bike_profile.Light.LIGHT_MODE,
         )
-        return result
+        return int(result[0]) if isinstance(result, (bytes, bytearray)) else int(result)
+
+    async def get_motor_battery_level(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the motor battery level for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeInfo.MOTOR_BATTERY_LEVEL,
+        )
+        return int(result[0])
+
+    async def get_module_battery_level(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the module battery level for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeInfo.MODULE_BATTERY_LEVEL,
+        )
+        return int(result[0])
+
+    async def get_motor_battery_state(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the motor battery state for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeInfo.MOTOR_BATTERY_STATE,
+        )
+        return int(result[0])
+
+    async def get_module_battery_state(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the module battery state for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeInfo.MODULE_BATTERY_STATE,
+        )
+        return int(result[0])
+
+    async def get_module_state(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the module state for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeState.MODULE_STATE,
+        )
+        return int(result[0])
+
+    async def get_errors(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the current bike error code for S3/X3.
+        """
+        result = await self._read(
+            self._bike_profile.BikeState.ERRORS,
+        )
+        return int.from_bytes(result, "little")

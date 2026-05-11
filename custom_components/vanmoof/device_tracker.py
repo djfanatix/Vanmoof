@@ -1,19 +1,30 @@
-from homeassistant.components.device_tracker.config_entry import (
-    TrackerEntity,
-)
-from bleak import BleakClient
+from homeassistant.components.device_tracker.config_entry import TrackerEntity
+from homeassistant.components.device_tracker import SOURCE_TYPE_BLUETOOTH
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN
+from .vanmoof_coordinator import VanMoofDataUpdateCoordinator
+
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-class VanMoofDeviceTracker(TrackerEntity):
+async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_entities):
+    """Set up the VanMoof device tracker platform."""
+    coordinator: VanMoofDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    mac_address = config_entry.data["mac_address"]
+
+    async_add_entities([VanMoofDeviceTracker(coordinator, mac_address)])
+
+
+class VanMoofDeviceTracker(CoordinatorEntity, TrackerEntity):
     """Representation of a VanMoof bike device tracker."""
 
-    def __init__(self, mac_address: str, encryption_key: str):
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, mac_address: str):
         """Initialize the device tracker."""
+        super().__init__(coordinator)
         self._mac_address = mac_address
-        self._encryption_key = encryption_key
-        self._state = None
         self._name = "VanMoof Bike Tracker"
         self._unique_id = f"vanmoof_bike_{mac_address}_tracker"
 
@@ -30,19 +41,16 @@ class VanMoofDeviceTracker(TrackerEntity):
     @property
     def state(self):
         """Return the state of the device tracker (home/away)."""
-        return self._state
+        if self.coordinator.data.get("available"):
+            return "home"
+        return "away"
 
-    async def async_update(self):
-        """Check if the bike is nearby."""
-        try:
-            async with BleakClient(self._mac_address) as client:
-                # Try to connect and check if successful
-                if client.is_connected:
-                    self._state = "home"  # Bike is nearby
-                    _LOGGER.info(f"VanMoof bike {self._mac_address} is nearby.")
-                else:
-                    self._state = "away"  # Bike is not nearby
-                    _LOGGER.info(f"VanMoof bike {self._mac_address} is not nearby.")
-        except Exception as e:
-            _LOGGER.error(f"Error updating device tracker: {e}")
-            self._state = "away"  # If there's an error, consider the bike away
+    @property
+    def source_type(self):
+        """Return the source type for the device tracker."""
+        return SOURCE_TYPE_BLUETOOTH
+
+    @property
+    def available(self):
+        """Return whether the tracker is currently able to determine bike presence."""
+        return self.coordinator.last_update_success

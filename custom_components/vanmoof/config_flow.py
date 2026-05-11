@@ -7,8 +7,6 @@ from homeassistant.data_entry_flow import FlowResult
 from .pymoof_wrapper import VanMoofHub
 
 from .retrieve_encryption_key import RetrieveEncryptionKey
-from .sx_client import SXClient
-from .sx3_client import SX3Client
 from .discover_bike import DiscoverBike  # Assuming this class discovers the bike
 
 import voluptuous as vol
@@ -74,8 +72,12 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
             try:
                 # Step 3: Use the MAC address to discover and connect to the bike
                 device, client_type = await DiscoverBike.query(
-                    self.mac_address, self.polling_interval, self.encryption_key
-                )  # Pass encryption_key here as well
+                    self.mac_address,
+                    self.polling_interval,
+                    self.encryption_key,
+                    self.user_key_id,
+                    self.vanmoof_type,
+                )  # Pass encryption_key, user_key_id, and bike type
 
                 if not device:
                     errors["base"] = "no_bike_found"
@@ -96,7 +98,8 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
                         "user_key_id": self.user_key_id,
                         "mac_address": self.mac_address,
                         "polling_interval": self.polling_interval,
-                        "vanmoof_type": client_type,  # Assuming client_type represents the bike type
+                        "vanmoof_type": self.vanmoof_type,
+                        "client_type": client_type,
                     },
                 )
 

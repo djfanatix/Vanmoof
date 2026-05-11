@@ -5,32 +5,47 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import DOMAIN
+from .vanmoof_coordinator import VanMoofDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+PLATFORMS = ["sensor", "device_tracker"]
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the VanMoof integration."""
     return True
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up VanMoof from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = entry.data
 
-    # Forward the setup to the sensor platform (use async_forward_entry_setups instead)
-    await hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    coordinator = VanMoofDataUpdateCoordinator(hass, entry)
+    hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    # Forward the setup to the device_tracker platform (add this line)
-    #await hass.config_entries.async_forward_entry_setup(entry, "device_tracker")  
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except UpdateFailed as err:
+        _LOGGER.warning("Initial VanMoof bike update failed: %s", err)
+
+    for platform in PLATFORMS:
+        await hass.config_entries.async_forward_entry_setup(entry, platform)
+
     return True
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a VanMoof config entry."""
-    hass.data[DOMAIN].pop(entry.entry_id)
+    unload_ok = all(
+        await hass.config_entries.async_forward_entry_unload(entry, platform)
+        for platform in PLATFORMS
+    )
 
-    # Unload the sensor platform
-    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
 
-    return True
+    return unload_ok
