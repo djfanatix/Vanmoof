@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="120" viewBox="0 0 320 120">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00a6ff" />
+      <stop offset="100%" stop-color="#0052cc" />
+    </linearGradient>
+  </defs>
+  <rect width="320" height="120" rx="20" ry="20" fill="#111" />
+  <path d="M50 75 L70 35 L90 75 Z" fill="url(#grad)" />
+  <path d="M110 40 H130 L150 70 H170" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round" />
+  <text x="110" y="90" fill="#fff" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">VanMoof HA</text>
+  <text x="110" y="108" fill="#bbb" font-family="Inter, Arial, sans-serif" font-size="14">BLE Custom Component</text>
+</svg>
