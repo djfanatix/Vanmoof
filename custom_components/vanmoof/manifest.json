@@ -1,7 +1,7 @@
 {
   "domain": "vanmoof",
   "name": "VanMoof Integration",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "config_flow": true,
   "integration_type": "hub",
   "documentation": "https://github.com/djfanatix/vanmoof",

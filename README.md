@@ -52,6 +52,14 @@ This custom integration requires the bike MAC address and an encryption key to c
 - If the integration fails to connect, confirm that Bluetooth is available on the host and the bike is powered on.
 - Check Home Assistant logs for BLE discovery and authentication errors.
 
+## HACS Support
+
+This repository includes HACS metadata in `hacs.json` at the repository root, and the integration content lives under `custom_components/vanmoof`.
+
+- `hacs.json`: HACS repository manifest
+- `README.md`: documentation for users
+- `logo.svg`: repository logo asset
+
 ## Logo
 
 The repository includes a simple logo asset in `logo.svg`.
