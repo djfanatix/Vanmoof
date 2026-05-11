@@ -6,7 +6,8 @@ This integration supports both older VanMoof SX1/S1 bikes and newer S3/X3 bikes.
 
 ## Features
 
-- BLE bike presence detection
+- **BLE Connectivity** — Works with native Bluetooth and BLE proxies (ESPHome, Shelly, etc.)
+- Bike presence detection
 - Battery level sensor
 - Module battery sensor (S3/X3)
 - Lock state sensor
@@ -43,7 +44,11 @@ This custom integration requires the bike MAC address and an encryption key to c
 
 ## Notes
 
-- The integration uses BLE scanning and direct connection to the bike.
+- The integration uses BLE to connect to the bike via Home Assistant's Bluetooth integration.
+- **Proxy Support** — Works with native Bluetooth adapters and BLE proxies:
+  - ESPHome BLE proxy devices
+  - Shelly devices with BLE support
+  - Any Home Assistant BLE proxy
 - When the bike is out of Bluetooth range or in sleep mode, sensors will be marked unavailable and the tracker will report `away`.
 - SX3/X3 support is optional and detected based on the configured bike type.
 

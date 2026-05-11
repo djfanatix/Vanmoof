@@ -26,7 +26,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
         self.encryption_key = None
         self.user_key_id = None
         self.mac_address = None
-        self.polling_interval = 60  # Default to 60 seconds
+        self.polling_interval = 300  # Default to 300 seconds (5 minutes)
         super().__init__()
 
     async def async_step_user(self, user_input=None):
@@ -36,7 +36,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
         if user_input is not None:
             self.username = user_input["username"]
             self.password = user_input["password"]
-            self.polling_interval = user_input.get("polling_interval", 60)  # Use the user-provided polling interval
+            self.polling_interval = user_input.get("polling_interval", 300)  # Use the user-provided polling interval
 
             # Step 1: Retrieve the encryption key and bike details
             try:
@@ -119,7 +119,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
             {
                 vol.Required("username"): str,
                 vol.Required("password"): str,
-                vol.Optional("polling_interval", default=60): vol.All(int, vol.Range(min=10, max=3600)),
+                vol.Optional("polling_interval", default=300): vol.All(int, vol.Range(min=10, max=3600)),
             }
         )
     # Add this method to indicate successful setup

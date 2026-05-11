@@ -154,3 +154,35 @@ class SXClient:
         except Exception as e:
             _LOGGER.error(f"Failed to get light mode: {e}")
             raise
+
+    async def get_module_battery_level(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the module battery level for SX1/S1 bikes.
+        """
+        try:
+            result = await self._read(self._bike_profile.Bike.PARAMETERS)
+            module_level = int(result[6])
+            _LOGGER.info(f"Module battery level: {module_level}%")
+            return module_level
+        except Exception as e:
+            _LOGGER.error(f"Failed to get module battery level: {e}")
+            raise
+
+    async def get_error_codes(self) -> int:
+        """
+        **Must be authenticated to call**
+
+        Gets the current error codes for SX1/S1 bikes.
+        """
+        try:
+            # Error codes are typically in a dedicated characteristic or part of parameters
+            result = await self._read(self._bike_profile.Bike.PARAMETERS)
+            # Error code is at a specific position in the parameters
+            error_code = int.from_bytes(result[7:9], "little") if len(result) > 8 else 0
+            _LOGGER.info(f"Error codes: {error_code}")
+            return error_code
+        except Exception as e:
+            _LOGGER.error(f"Failed to get error codes: {e}")
+            raise
