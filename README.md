@@ -48,12 +48,11 @@ This custom integration requires the bike MAC address and an encryption key to c
 
 ## Notes
 
-- The integration uses BLE to connect to the bike via Home Assistant's Bluetooth integration.
-- **Proxy Support** — Works with native Bluetooth adapters and BLE proxies when Home Assistant supports the required Bluetooth helpers:
-  - ESPHome BLE proxy devices
-  - Shelly devices with BLE support
-  - Any Home Assistant BLE proxy
-- If your Home Assistant version does not provide `async_connect_ble_device`, proxy support is not available and the integration will fall back to direct BLE only.
+- The integration uses BLE to connect to the bike via Home Assistant's Bluetooth infrastructure.
+- **Bluetooth Support** — Requires direct BLE/GATT access on the Home Assistant host.
+- The integration works if the bike is exposed as a real BLE/GATT peripheral on the host.
+- Shelly BLE proxies are not supported because they do not provide the full GATT connection required by VanMoof.
+- ESP32 proxy setups can work only if the proxy presents the bike as a full GATT peripheral to the host.
 - When the bike is out of Bluetooth range or in sleep mode, sensors will be marked unavailable and the tracker will report `away`.
 - SX3/X3 support is optional and detected based on the configured bike type.
 

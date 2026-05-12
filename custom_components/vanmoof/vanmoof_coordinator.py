@@ -5,14 +5,6 @@ import logging
 from datetime import timedelta
 
 from bleak import BleakClient, BleakScanner
-try:
-    from homeassistant.components.bluetooth import (
-        async_ble_device_from_address,
-        async_connect_ble_device,
-    )
-except ImportError:  # pragma: no cover
-    async_ble_device_from_address = None
-    async_connect_ble_device = None
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -58,29 +50,26 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self):
-        """Fetch data from the bike via BLE (native or proxy)."""
+        """Fetch data from the bike via BLE."""
         try:
-            if async_ble_device_from_address is None:
-                _LOGGER.warning(
-                    "Home Assistant Bluetooth proxy helpers are unavailable; falling back to direct Bleak scanning."
-                )
-                return await self._async_update_direct()
+            devices = await BleakScanner.discover(timeout=8.0)
+            _LOGGER.debug("Discovered %s BLE devices while searching for VanMoof bike.", len(devices))
 
-            ble_device = await async_ble_device_from_address(
-                self.hass, self._mac_address, connectable=True
+            if not devices:
+                raise UpdateFailed("No Bluetooth devices discovered.")
+
+            bike_device = next(
+                (device for device in devices if device.address.lower() == self._mac_address.lower()),
+                None,
             )
 
-            if not ble_device:
-                _LOGGER.warning("VanMoof bike with MAC %s not found in Bluetooth discovery.", self._mac_address)
+            if not bike_device:
                 raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
 
-            if async_connect_ble_device is None:
-                raise UpdateFailed(
-                    "Home Assistant Bluetooth proxy support is not available in this version; "
-                    "please upgrade Home Assistant or use a native Bluetooth adapter."
-                )
+            async with BleakClient(bike_device) as client:
+                if not client.is_connected:
+                    raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
-            async with async_connect_ble_device(self.hass, ble_device) as client:
                 if _is_sx3_bike(self._vanmoof_type):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                     await sx_client.authenticate()
