@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "polling_interval": "Polling interval (seconds)"
+        },
+        "description": "Enter your VanMoof account credentials."
+      },
+      "discover_bike": {
+        "description": "Discover your VanMoof bike using the provided account details."
+      }
+    }
+  },
+  "errors": {
+    "invalid_auth": "Wrong username or password.",
+    "auth_error": "Could not log in. Please check your credentials and try again.",
+    "no_vanmoof_bike_found": "Login succeeded, but no VanMoof bike was found nearby.",
+    "bike_discovery_failed": "Unable to discover the bike. Make sure Bluetooth is enabled and the bike is within range."
+  }
+}

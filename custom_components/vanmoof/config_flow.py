@@ -3,7 +3,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
 from .const import DOMAIN
-from .retrieve_encryption_key import RetrieveEncryptionKey
+from .retrieve_encryption_key import InvalidAuth, RetrieveEncryptionKey
 from .discover_bike import DiscoverBike
 
 import voluptuous as vol
@@ -50,10 +50,12 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Proceed to Step 2: Discover the nearby bike
                 return await self.async_step_discover_bike()
 
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
             except Exception as e:
-                errors["base"] = f"Error retrieving bike details: {e}"
+                _LOGGER.error("Error retrieving bike details: %s", e)
+                errors["base"] = "auth_error"
 
-                # If user input is invalid, show form again
         return self.async_show_form(
             step_id="user", data_schema=self._create_data_schema(), errors=errors
         )
@@ -76,7 +78,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )  # Pass encryption_key, user_key_id, and bike type
 
                 if not device:
-                    errors["base"] = "no_bike_found"
+                    errors["base"] = "no_vanmoof_bike_found"
                     _LOGGER.error("No bike found with MAC address: %s", self.mac_address)
                     return self.async_show_form(
                         step_id="discover_bike", errors=errors

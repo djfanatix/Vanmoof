@@ -4,6 +4,12 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
+class InvalidAuth(Exception):
+    pass
+
+class NoBikeDetails(Exception):
+    pass
+
 class RetrieveEncryptionKey:
     @staticmethod
     async def query(username, password):
@@ -103,6 +109,8 @@ class RetrieveEncryptionKey:
         except httpx.HTTPStatusError as e:
             # Handle HTTP errors (e.g., 404, 500)
             _LOGGER.error(f"HTTP error occurred: {e}")
+            if e.response is not None and e.response.status_code == 401:
+                raise InvalidAuth("Wrong username or password.")
             raise Exception(f"HTTP error occurred: {e}")
         except Exception as e:
             # Handle other exceptions
