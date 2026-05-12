@@ -17,6 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 class VanMoofConfigFlow(config_entries.ConfigFlow, domain="vanmoof"):
     """Handle a config flow for VanMoof."""
 
+    DOMAIN = "vanmoof"
     VERSION = 1
 
     def __init__(self):
