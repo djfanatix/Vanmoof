@@ -4,13 +4,16 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from homeassistant.components.bluetooth import (
-    async_ble_device_from_address,
-    async_connect_ble_device,
-)
+from bleak import BleakClient
+from homeassistant.components.bluetooth import async_ble_device_from_address
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+try:
+    from homeassistant.components.bluetooth import async_connect_ble_device
+except ImportError:  # pragma: no cover
+    async_connect_ble_device = None
 
 from .const import DOMAIN
 from .sx_client import SXClient
@@ -64,8 +67,13 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning("VanMoof bike with MAC %s not found in Bluetooth discovery.", self._mac_address)
                 raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
 
-            # Connect to the device via HA Bluetooth (handles proxies automatically)
-            async with async_connect_ble_device(self.hass, ble_device) as client:
+            # Connect to the device via HA Bluetooth (handles proxies automatically when available)
+            if async_connect_ble_device is not None:
+                client_context = async_connect_ble_device(self.hass, ble_device)
+            else:
+                client_context = BleakClient(ble_device)
+
+            async with client_context as client:
                 if _is_sx3_bike(self._vanmoof_type):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                     await sx_client.authenticate()

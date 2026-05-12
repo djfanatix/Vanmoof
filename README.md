@@ -1,5 +1,9 @@
 # VanMoof Home Assistant Custom Integration
 
+<div style="background-color:#F6E30A; border-radius:12px; padding:16px; color:#000; font-weight:600; margin-bottom:16px;">
+  <strong>VanMoof Yellow</strong> — This integration is designed for VanMoof bikes and supports BLE connectivity via Home Assistant.
+</div>
+
 A custom Home Assistant integration to connect to VanMoof e-bikes over Bluetooth Low Energy (BLE).
 
 This integration supports both older VanMoof SX1/S1 bikes and newer S3/X3 bikes. It provides bike telemetry sensors and a Bluetooth-based device tracker.
@@ -64,6 +68,19 @@ This repository includes HACS metadata in `hacs.json` at the repository root, an
 - `hacs.json`: HACS repository manifest
 - `README.md`: documentation for users
 - `logo.svg`: repository logo asset
+
+### Adding Logo to HACS
+
+HACS gets all branding from the official [home-assistant/brands](https://github.com/home-assistant/brands) repository. To add your logo:
+
+1. Fork https://github.com/home-assistant/brands
+2. Create folder: `homeassistant_community/vanmoof/`
+3. Copy the prepared branding files from `homeassistant_community/vanmoof/` in this repo:
+   - `icon.png` (192×192px)
+   - `icon@2x.png` (384×384px)
+4. Submit a Pull Request
+
+Once merged, HACS will display your logo automatically.
 
 ## Logo
 
