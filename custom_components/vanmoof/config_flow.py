@@ -1,23 +1,18 @@
 
-from bleak import BleakClient, BleakError
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
-from homeassistant.data_entry_flow import FlowResult
-from .pymoof_wrapper import VanMoofHub
-
+from .const import DOMAIN
 from .retrieve_encryption_key import RetrieveEncryptionKey
-from .discover_bike import DiscoverBike  # Assuming this class discovers the bike
+from .discover_bike import DiscoverBike
 
 import voluptuous as vol
-
 import logging
 _LOGGER = logging.getLogger(__name__)
 
-class VanMoofConfigFlow(config_entries.ConfigFlow):
+class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for VanMoof."""
 
-    DOMAIN = "vanmoof"
     VERSION = 1
 
     def __init__(self):
