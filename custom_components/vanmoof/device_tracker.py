@@ -1,5 +1,4 @@
 from homeassistant.components.device_tracker.config_entry import TrackerEntity
-from homeassistant.components.device_tracker import SOURCE_TYPE_BLUETOOTH
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -48,7 +47,7 @@ class VanMoofDeviceTracker(CoordinatorEntity, TrackerEntity):
     @property
     def source_type(self):
         """Return the source type for the device tracker."""
-        return SOURCE_TYPE_BLUETOOTH
+        return "bluetooth"
 
     @property
     def available(self):
