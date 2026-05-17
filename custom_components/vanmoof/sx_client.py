@@ -57,20 +57,48 @@ class SXClient:
             _LOGGER.error(f"Failed to get parameters: {e}")
             raise
 
-    async def get_parameters(self) -> int: 
+    async def get_parameters(self) -> dict:
         try:
             result = await self._read(self._bike_profile.Bike.PARAMETERS)
 
-            _LOGGER.debug(f"Battery data: {result}")
-            battery_level = int(result[5])
+            _LOGGER.debug(f"Parameters data: {result}")
+            
+            # Extract all parameters from the array
+            module_state = int(result[2]) if len(result) > 2 else None
+            lock_state = int(result[3]) if len(result) > 3 else None
+            battery_level = int(result[5]) if len(result) > 5 else None
+            module_level = int(result[6]) if len(result) > 6 else None
+            light_mode = int(result[7]) if len(result) > 7 else None
+            power_level = int(result[8]) if len(result) > 8 else None
+            
+            # Distance is 4 bytes at indices 11-14
+            if len(result) > 14:
+                distance = result[11] + (result[12] << 8) + (result[13] << 16) + (result[14] << 24)
+                distance_km = distance / 10
+            else:
+                distance_km = None
+            
+            # Error code and charging status at index 15
+            error_code = int(result[15]) if len(result) > 15 else None
+            
             _LOGGER.debug(f"Battery level: {battery_level}%")
-            module_level = int(result[6])
             _LOGGER.debug(f"Module level: {module_level}%")
+            _LOGGER.debug(f"Module state: {module_state}")
+            _LOGGER.debug(f"Lock state: {lock_state}")
+            _LOGGER.debug(f"Light mode: {light_mode}")
+            _LOGGER.debug(f"Power level: {power_level}")
+            _LOGGER.debug(f"Distance: {distance_km} km")
             
             return {
                 "battery_level": battery_level,
-                "module_level": module_level
-                }
+                "module_level": module_level,
+                "module_state": module_state,
+                "lock_state": lock_state,
+                "light_mode": light_mode,
+                "power_level": power_level,
+                "distance": distance_km,
+                "error_code": error_code,
+            }
         except Exception as e:
             _LOGGER.error(f"Failed to get parameters: {e}")
             raise
