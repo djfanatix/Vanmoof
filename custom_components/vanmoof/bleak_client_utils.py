@@ -1,5 +1,6 @@
 import logging
 import bleak.backends.client
+from bleak import BleakClient
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,6 +36,25 @@ async def _resolve_characteristic(gatt_client: bleak.backends.client.BaseBleakCl
         raise ValueError(f"Service {service_uuid} not found on the BLE client.")
 
     return service.get_characteristic(uuid)
+
+
+async def connect_bleak_client(device, timeout: float = 20.0) -> BleakClient:
+    """Connect to a BLE device with a fallback from device object to address."""
+    client = BleakClient(device)
+    try:
+        await client.connect(timeout=timeout)
+        return client
+    except Exception as first_exc:
+        _LOGGER.debug("BleakClient(device) connection failed: %s", first_exc)
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+
+    fallback_target = getattr(device, "address", device)
+    client = BleakClient(fallback_target)
+    await client.connect(timeout=timeout)
+    return client
 
 
 async def read_from_characteristic(

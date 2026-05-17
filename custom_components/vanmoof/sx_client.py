@@ -75,29 +75,35 @@ class SXClient:
             _LOGGER.error(f"Failed to get parameters: {e}")
             raise
 
-    async def get_lock_state(self) -> LockState:
+    async def get_lock_state(self) -> LockState | None:
 
         try:
             result = await self._read(self._bike_profile.Defense.LOCK_STATE)
             lock_state = LockState(result[0])
             _LOGGER.info(f"Lock state: {lock_state.name}")
             return lock_state
+        except AttributeError as e:
+            _LOGGER.debug("Lock state not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get lock state: {e}")
-            raise
+            return None
 
-    async def get_distance_travelled(self) -> float:
+    async def get_distance_travelled(self) -> float | None:
 
         try:
             result = await self._read(self._bike_profile.Movement.DISTANCE)
             distance_km = int.from_bytes(result, "little") / 10  # Convert hectometers to kilometers
             _LOGGER.info(f"Distance travelled: {distance_km} km")
             return distance_km
+        except AttributeError as e:
+            _LOGGER.debug("Distance travelled not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get distance travelled: {e}")
-            raise
+            return None
 
-    async def get_power_level(self) -> int:
+    async def get_power_level(self) -> int | None:
         """
         **Must be authenticated to call**
 
@@ -107,11 +113,14 @@ class SXClient:
             result = await self._read(self._bike_profile.Movement.POWER_LEVEL)
             _LOGGER.info(f"Power level: {result}")
             return result
+        except AttributeError as e:
+            _LOGGER.debug("Power level not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get power level: {e}")
-            raise
+            return None
 
-    async def get_frame_number(self) -> str:
+    async def get_frame_number(self) -> str | None:
         """
         **No authentication needed to call**
 
@@ -122,11 +131,14 @@ class SXClient:
             frame_number = result.decode("ascii")
             _LOGGER.info(f"Frame number: {frame_number}")
             return frame_number
+        except AttributeError as e:
+            _LOGGER.debug("Frame number not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get frame number: {e}")
-            raise
+            return None
 
-    async def get_speed(self) -> int:
+    async def get_speed(self) -> int | None:
         """
         **Must be authenticated to call**
 
@@ -137,11 +149,14 @@ class SXClient:
             speed = int.from_bytes(result, "little")
             _LOGGER.info(f"Current speed: {speed} km/h")
             return speed
+        except AttributeError as e:
+            _LOGGER.debug("Speed not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get speed: {e}")
-            raise
+            return None
 
-    async def get_light_mode(self) -> int:
+    async def get_light_mode(self) -> int | None:
         """
         **Must be authenticated to call**
 
@@ -151,11 +166,14 @@ class SXClient:
             result = await self._read(self._bike_profile.Movement.SPEED)
             _LOGGER.info(f"Light mode: {result}")
             return result
+        except AttributeError as e:
+            _LOGGER.debug("Light mode not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get light mode: {e}")
-            raise
+            return None
 
-    async def get_module_battery_level(self) -> int:
+    async def get_module_battery_level(self) -> int | None:
         """
         **Must be authenticated to call**
 
@@ -166,11 +184,14 @@ class SXClient:
             module_level = int(result[6])
             _LOGGER.info(f"Module battery level: {module_level}%")
             return module_level
+        except AttributeError as e:
+            _LOGGER.debug("Module battery level not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get module battery level: {e}")
-            raise
+            return None
 
-    async def get_error_codes(self) -> int:
+    async def get_error_codes(self) -> int | None:
         """
         **Must be authenticated to call**
 
@@ -183,6 +204,9 @@ class SXClient:
             error_code = int.from_bytes(result[7:9], "little") if len(result) > 8 else 0
             _LOGGER.info(f"Error codes: {error_code}")
             return error_code
+        except AttributeError as e:
+            _LOGGER.debug("Error codes not available for this bike model: %s", e)
+            return None
         except Exception as e:
             _LOGGER.error(f"Failed to get error codes: {e}")
-            raise
+            return None

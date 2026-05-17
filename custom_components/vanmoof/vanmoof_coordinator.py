@@ -4,12 +4,13 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from bleak import BleakClient, BleakScanner
+from bleak import BleakScanner
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN
+from .bleak_client_utils import connect_bleak_client
 from .sx_client import SXClient
 from .sx3_client import SX3Client
 
@@ -66,7 +67,8 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             if not bike_device:
                 raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
 
-            async with BleakClient(bike_device) as client:
+            client = await connect_bleak_client(bike_device)
+            try:
                 if not client.is_connected:
                     raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
@@ -90,13 +92,15 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
                 sx_client = SXClient(client, self._encryption_key)
                 parameters = await sx_client.get_parameters()
+                lock_state = await sx_client.get_lock_state()
+                power_level = await sx_client.get_power_level()
                 return {
                     "available": True,
                     "battery_level": parameters.get("battery_level"),
                     "module_level": parameters.get("module_level"),
-                    "lock_state": (await sx_client.get_lock_state()).name,
+                    "lock_state": lock_state.name if lock_state else "unknown",
                     "distance_travelled": await sx_client.get_distance_travelled(),
-                    "power_level": _to_int(await sx_client.get_power_level()),
+                    "power_level": _to_int(power_level) if power_level is not None else None,
                     "speed": await sx_client.get_speed(),
                     "light_mode": await sx_client.get_light_mode(),
                     "module_state": None,
@@ -106,6 +110,11 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                     "motor_battery_level": None,
                     "module_battery_level": None,
                 }
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
         except Exception as e:
             _LOGGER.error(f"Error during bike data update: {e}")
             raise UpdateFailed(f"Error updating bike data: {e}")
@@ -126,7 +135,8 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         if not bike_device:
             raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
 
-        async with BleakClient(bike_device) as client:
+        client = await connect_bleak_client(bike_device)
+        try:
             if not client.is_connected:
                 raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
@@ -150,13 +160,15 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
             sx_client = SXClient(client, self._encryption_key)
             parameters = await sx_client.get_parameters()
+            lock_state = await sx_client.get_lock_state()
+            power_level = await sx_client.get_power_level()
             return {
                 "available": True,
                 "battery_level": parameters.get("battery_level"),
                 "module_level": parameters.get("module_level"),
-                "lock_state": (await sx_client.get_lock_state()).name,
+                "lock_state": lock_state.name if lock_state else "unknown",
                 "distance_travelled": await sx_client.get_distance_travelled(),
-                "power_level": _to_int(await sx_client.get_power_level()),
+                "power_level": _to_int(power_level) if power_level is not None else None,
                 "speed": await sx_client.get_speed(),
                 "light_mode": await sx_client.get_light_mode(),
                 "module_state": None,
@@ -166,3 +178,8 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 "motor_battery_level": None,
                 "module_battery_level": None,
             }
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass

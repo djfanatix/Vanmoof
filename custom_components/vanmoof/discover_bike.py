@@ -1,5 +1,6 @@
 import logging
-from bleak import BleakScanner, BleakClient
+from bleak import BleakScanner
+from .bleak_client_utils import connect_bleak_client
 from .sx_client import SXClient
 from .sx3_client import SX3Client
 
@@ -10,18 +11,6 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
         return False
     value = vanmoof_type.upper()
     return any(token in value for token in ("SX3", "S3", "X3"))
-
-async def _connect_bleak_client(device):
-    try:
-        bleak_client = BleakClient(device)
-        await bleak_client.connect()
-        return bleak_client
-    except Exception as first_exc:
-        _LOGGER.debug("Initial BleakClient(device) connection failed: %s", first_exc)
-        bleak_client = BleakClient(device.address)
-        await bleak_client.connect()
-        return bleak_client
-
 
 class DiscoverBike:
     @staticmethod
@@ -51,7 +40,7 @@ class DiscoverBike:
                     # Found the device with the MAC address
                     _LOGGER.info(f"Found bike with MAC address: {device.name} ({device.address})")
 
-                    bleak_client = await _connect_bleak_client(device)
+                    bleak_client = await connect_bleak_client(device)
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
                     if _is_sx3_bike(vanmoof_type):
