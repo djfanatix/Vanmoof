@@ -68,12 +68,20 @@ class RetrieveEncryptionKey:
                 
                 _LOGGER.debug("Bike MAC address: %s", mac_address)
 
-             # Extract Bike Type
+                # Extract Bike Type
                 vanmoof_type = bike_details[0].get("bleProfile")
                 if not vanmoof_type:
                     raise Exception("No 'bleProfile' found in bike details.")
                 
                 _LOGGER.debug("bleProfile: %s", vanmoof_type)
+                
+                # Extract bike name
+                bike_name = bike_details[0].get("name", "VanMoof Bike")
+                _LOGGER.debug("Bike name: %s", bike_name)
+                
+                # Extract serial number (frame number)
+                serial_number = bike_details[0].get("frameNumber", mac_address)
+                _LOGGER.debug("Serial number: %s", serial_number)
 
                 # Extract the key object from the first bike detail
                 bike_keys = bike_details[0].get("key", {})
@@ -97,10 +105,10 @@ class RetrieveEncryptionKey:
                 if not user_key_id:
                     _LOGGER.warning("No 'userKeyId' found. This may be an older bike model (S1, etc.).")
                     # Consider returning only encryption_key or making it optional for older bikes
-                    return encryption_key, None, mac_address, vanmoof_type
+                    return encryption_key, None, mac_address, vanmoof_type, bike_name, serial_number
 
-                # Return encryption key, user key id, and mac address for later use
-                return encryption_key, user_key_id, mac_address, vanmoof_type
+                # Return encryption key, user key id, mac address, type, name, and serial
+                return encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number
 
         except httpx.RequestError as e:
             # Handle network or HTTP request-related errors

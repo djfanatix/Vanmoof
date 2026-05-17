@@ -40,8 +40,14 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         self._encryption_key = entry.data["encryption_key"]
         self._user_key_id = entry.data.get("user_key_id")
         self._vanmoof_type = entry.data.get("vanmoof_type")
+        self._entry = entry
 
-        update_interval = timedelta(seconds=entry.data["polling_interval"])
+        # Get polling interval from options if available, otherwise from data
+        polling_interval_seconds = entry.options.get(
+            "polling_interval", 
+            entry.data.get("polling_interval", 300)
+        )
+        update_interval = timedelta(seconds=polling_interval_seconds)
 
         super().__init__(
             hass,

@@ -22,6 +22,9 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.encryption_key = None
         self.user_key_id = None
         self.mac_address = None
+        self.bike_name = None
+        self.serial_number = None
+        self.vanmoof_type = None
         self.polling_interval = 300  # Default to 300 seconds (5 minutes)
         super().__init__()
 
@@ -36,7 +39,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Step 1: Retrieve the encryption key and bike details
             try:
-                encryption_key, user_key_id, mac_address, vanmoof_type  = await RetrieveEncryptionKey.query(
+                encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number = await RetrieveEncryptionKey.query(
                     self.username, self.password
                 )
 
@@ -44,8 +47,12 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.user_key_id = user_key_id
                 self.mac_address = mac_address
                 self.vanmoof_type = vanmoof_type
+                self.bike_name = bike_name
+                self.serial_number = serial_number
 
                 _LOGGER.debug("Bike MAC address: %s", self.mac_address)
+                _LOGGER.debug("Bike name: %s", self.bike_name)
+                _LOGGER.debug("Serial number: %s", self.serial_number)
 
             # Proceed to Step 2: Discover the nearby bike
                 return await self.async_step_discover_bike()
@@ -88,7 +95,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Final step: Return to finish the configuration
                 return self.async_create_entry(
-                    title=f"VanMoof Bike ({self.mac_address})",
+                    title=self.bike_name,
                     data={
                         "username": self.username,
                         "password": self.password,
@@ -97,6 +104,8 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "mac_address": self.mac_address,
                         "polling_interval": self.polling_interval,
                         "vanmoof_type": self.vanmoof_type,
+                        "bike_name": self.bike_name,
+                        "serial_number": self.serial_number,
                         "client_type": client_type,
                     },
                 )
@@ -120,6 +129,12 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional("polling_interval", default=300): vol.All(int, vol.Range(min=10, max=3600)),
             }
         )
+
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        """Create options flow."""
+        return VanMoofOptionsFlow(config_entry)
+
     # Add this method to indicate successful setup
     async def async_setup_entry(self, hass: HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
         """Set up the VanMoof integration."""
@@ -130,3 +145,28 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception as e:
             _LOGGER.error("Error during setup: %s", e)
             return False
+
+
+class VanMoofOptionsFlow(config_entries.OptionsFlow):
+    """Handle options for VanMoof."""
+
+    def __init__(self, config_entry):
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        "polling_interval",
+                        default=self.config_entry.options.get("polling_interval", self.config_entry.data.get("polling_interval", 300)),
+                    ): vol.All(int, vol.Range(min=10, max=3600)),
+                }
+            ),
+        )
