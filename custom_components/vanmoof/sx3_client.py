@@ -2,8 +2,8 @@ from enum import Enum
 
 import bleak.backends.client
 
+from .bleak_client_utils import read_from_characteristic, write_to_characteristic
 from .sx3_profile import SX3Profile
-from pymoof.util import bleak_utils
 
 
 class BellTone(Enum):
@@ -83,7 +83,7 @@ class SX3Client:
         )
 
     async def _read(self, characteristic_uuid, needs_decryption: bool = True) -> bytes:
-        result = await bleak_utils.read_from_characteristic(
+        result = await read_from_characteristic(
             self._gatt_client,
             characteristic_uuid,
         )
@@ -97,7 +97,7 @@ class SX3Client:
         nonce = await self._get_nonce()
         payload = self._bike_profile.build_encrypted_payload(nonce, data)
 
-        await bleak_utils.write_to_characteristic(
+        await write_to_characteristic(
             self._gatt_client,
             characteristic_uuid,
             payload,
@@ -114,7 +114,7 @@ class SX3Client:
         nonce = await self._get_nonce()
         payload = self._bike_profile.build_authentication_payload(nonce)
 
-        await bleak_utils.write_to_characteristic(
+        await write_to_characteristic(
             self._gatt_client,
             self._bike_profile.Security.KEY_INDEX,
             payload,

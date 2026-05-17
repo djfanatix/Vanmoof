@@ -11,6 +11,18 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     value = vanmoof_type.upper()
     return any(token in value for token in ("SX3", "S3", "X3"))
 
+async def _connect_bleak_client(device):
+    try:
+        bleak_client = BleakClient(device)
+        await bleak_client.connect()
+        return bleak_client
+    except Exception as first_exc:
+        _LOGGER.debug("Initial BleakClient(device) connection failed: %s", first_exc)
+        bleak_client = BleakClient(device.address)
+        await bleak_client.connect()
+        return bleak_client
+
+
 class DiscoverBike:
     @staticmethod
     async def query(
@@ -39,8 +51,7 @@ class DiscoverBike:
                     # Found the device with the MAC address
                     _LOGGER.info(f"Found bike with MAC address: {device.name} ({device.address})")
 
-                    bleak_client = BleakClient(device)
-                    await bleak_client.connect()
+                    bleak_client = await _connect_bleak_client(device)
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
                     if _is_sx3_bike(vanmoof_type):

@@ -2,8 +2,8 @@ import logging
 from enum import Enum
 import bleak.backends.client
 from bleak import BleakScanner, BleakClient
+from .bleak_client_utils import read_from_characteristic
 from .sx_profile import SXProfile
-from pymoof.util import bleak_utils
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class SXClient:
 
     async def _read(self, characteristic_uuid, needs_decryption: bool = True) -> bytes:
         try:
-            result = await bleak_utils.read_from_characteristic(
+            result = await read_from_characteristic(
                 self._gatt_client,
                 characteristic_uuid,
             )
