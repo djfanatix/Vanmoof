@@ -63,32 +63,43 @@ class SXClient:
 
             _LOGGER.debug(f"Parameters data: {result}")
             
-            # Extract all parameters from the array
             module_state = int(result[2]) if len(result) > 2 else None
             lock_state = int(result[3]) if len(result) > 3 else None
             battery_level = int(result[5]) if len(result) > 5 else None
             module_level = int(result[6]) if len(result) > 6 else None
             light_mode = int(result[7]) if len(result) > 7 else None
             power_level = int(result[8]) if len(result) > 8 else None
+            region_code = int(result[9]) if len(result) > 9 else None
             
-            # Distance is 4 bytes at indices 11-14
             if len(result) > 14:
                 distance = result[11] + (result[12] << 8) + (result[13] << 16) + (result[14] << 24)
                 distance_km = distance / 10
             else:
                 distance_km = None
-            
-            # Error code and charging status at index 15
-            error_code = int(result[15]) if len(result) > 15 else None
-            
+
+            error_code = (result[15] & 0xF8) >> 3 if len(result) > 15 else None
+            charging = "CHARGING" if len(result) > 15 and (result[15] & 0x01) else "OFF"
+
+            region_mapping = {
+                0: "UNSUPPORTED",
+                1: "EU",
+                2: "US",
+                3: "OFFROAD",
+                4: "JAPAN",
+            }
+            region = region_mapping.get(region_code, "UNKNOWN") if region_code is not None else None
+
             _LOGGER.debug(f"Battery level: {battery_level}%")
             _LOGGER.debug(f"Module level: {module_level}%")
             _LOGGER.debug(f"Module state: {module_state}")
             _LOGGER.debug(f"Lock state: {lock_state}")
             _LOGGER.debug(f"Light mode: {light_mode}")
             _LOGGER.debug(f"Power level: {power_level}")
+            _LOGGER.debug(f"Region: {region}")
             _LOGGER.debug(f"Distance: {distance_km} km")
-            
+            _LOGGER.debug(f"Charging: {charging}")
+            _LOGGER.debug(f"Error code: {error_code}")
+
             return {
                 "battery_level": battery_level,
                 "module_level": module_level,
@@ -97,6 +108,8 @@ class SXClient:
                 "light_mode": light_mode,
                 "power_level": power_level,
                 "distance": distance_km,
+                "region": region,
+                "charging": charging,
                 "error_code": error_code,
             }
         except Exception as e:

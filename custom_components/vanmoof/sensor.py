@@ -19,17 +19,14 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_entitie
         [
             VanMoofBatterySensor(coordinator, config_entry, mac_address),
             VanMoofModuleLevelSensor(coordinator, config_entry, mac_address),
-            VanMoofMotorBatteryLevelSensor(coordinator, config_entry, mac_address),
-            VanMoofModuleBatteryLevelSensor(coordinator, config_entry, mac_address),
+            VanMoofChargingSensor(coordinator, config_entry, mac_address),
             VanMoofLockStateSensor(coordinator, config_entry, mac_address),
             VanMoofDistanceSensor(coordinator, config_entry, mac_address),
             VanMoofPowerLevelSensor(coordinator, config_entry, mac_address),
-            VanMoofSpeedSensor(coordinator, config_entry, mac_address),
+            VanMoofRegionSensor(coordinator, config_entry, mac_address),
             VanMoofLightModeSensor(coordinator, config_entry, mac_address),
             VanMoofModuleStateSensor(coordinator, config_entry, mac_address),
             VanMoofErrorCodeSensor(coordinator, config_entry, mac_address),
-            VanMoofMotorBatteryStateSensor(coordinator, config_entry, mac_address),
-            VanMoofModuleBatteryStateSensor(coordinator, config_entry, mac_address),
         ]
     )
 
@@ -54,7 +51,7 @@ class VanMoofSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self):
-        return self.coordinator.last_update_success and bool(self.coordinator.data.get("available"))
+        return self.coordinator.data is not None
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -106,45 +103,8 @@ class VanMoofModuleLevelSensor(VanMoofSensor):
         return "%"
 
 
-class VanMoofMotorBatteryLevelSensor(VanMoofSensor):
-    """VanMoof motor battery level sensor (S3/X3)."""
-
-    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
-        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Motor Battery Level", f"vanmoof_bike_{mac_address}_motor_battery_level")
-
-    @property
-    def state(self):
-        return self.coordinator.data.get("motor_battery_level")
-
-    @property
-    def device_class(self):
-        return SensorDeviceClass.BATTERY
-
-    @property
-    def unit_of_measurement(self):
-        return "%"
-
-
-class VanMoofModuleBatteryLevelSensor(VanMoofSensor):
-    """VanMoof module battery level sensor (S3/X3)."""
-
-    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
-        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Module Battery Level", f"vanmoof_bike_{mac_address}_module_battery_level")
-
-    @property
-    def state(self):
-        return self.coordinator.data.get("module_battery_level")
-
-    @property
-    def device_class(self):
-        return SensorDeviceClass.BATTERY
-
-    @property
-    def unit_of_measurement(self):
-        return "%"
-
-
 class VanMoofLockStateSensor(VanMoofSensor):
+
     """VanMoof lock state sensor."""
 
     def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
@@ -181,19 +141,15 @@ class VanMoofPowerLevelSensor(VanMoofSensor):
         return self.coordinator.data.get("power_level")
 
 
-class VanMoofSpeedSensor(VanMoofSensor):
-    """VanMoof speed sensor."""
+class VanMoofRegionSensor(VanMoofSensor):
+    """VanMoof bike region sensor."""
 
     def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
-        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Speed", f"vanmoof_bike_{mac_address}_speed")
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Region", f"vanmoof_bike_{mac_address}_region")
 
     @property
     def state(self):
-        return self.coordinator.data.get("speed")
-
-    @property
-    def unit_of_measurement(self):
-        return "km/h"
+        return self.coordinator.data.get("region")
 
 
 class VanMoofLightModeSensor(VanMoofSensor):
@@ -216,6 +172,17 @@ class VanMoofModuleStateSensor(VanMoofSensor):
     @property
     def state(self):
         return self.coordinator.data.get("module_state")
+
+
+class VanMoofChargingSensor(VanMoofSensor):
+    """VanMoof charging state sensor."""
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Charging", f"vanmoof_bike_{mac_address}_charging")
+
+    @property
+    def state(self):
+        return self.coordinator.data.get("charging")
 
 
 class VanMoofErrorCodeSensor(VanMoofSensor):
@@ -250,24 +217,3 @@ class VanMoofErrorCodeSensor(VanMoofSensor):
             return f"{message} ({errors})"
         return errors or "Unknown Error"
 
-
-class VanMoofMotorBatteryStateSensor(VanMoofSensor):
-    """VanMoof motor battery state sensor."""
-
-    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
-        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Motor Battery State", f"vanmoof_bike_{mac_address}_motor_battery_state")
-
-    @property
-    def state(self):
-        return self.coordinator.data.get("motor_battery_state")
-
-
-class VanMoofModuleBatteryStateSensor(VanMoofSensor):
-    """VanMoof module battery state sensor."""
-
-    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
-        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Module Battery State", f"vanmoof_bike_{mac_address}_module_battery_state")
-
-    @property
-    def state(self):
-        return self.coordinator.data.get("module_battery_state")

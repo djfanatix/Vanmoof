@@ -115,7 +115,9 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "bike_discovery_failed"
 
         return self.async_show_form(
-            step_id="discover_bike", errors=errors
+            step_id="discover_bike",
+            data_schema=vol.Schema({}),
+            errors=errors,
         )
 
 
@@ -130,8 +132,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-    @staticmethod
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(self, config_entry):
         """Create options flow."""
         return VanMoofOptionsFlow(config_entry)
 

@@ -110,7 +110,6 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 }
                 module_state = module_state_map.get(parameters.get("module_state"), "UNKNOWN")
                 
-                # Convert light_mode enum
                 light_mode_map = {0: "AUTO", 1: "ON", 2: "OFF", 3: "REAR_FLASH", 4: "REAR_FLASH_OFF"}
                 light_mode = light_mode_map.get(parameters.get("light_mode"), "UNKNOWN")
                 
@@ -121,14 +120,11 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                     "lock_state": lock_state,
                     "distance_travelled": parameters.get("distance"),
                     "power_level": parameters.get("power_level"),
-                    "speed": None,  # Not available in parameters for S1
+                    "region": parameters.get("region"),
                     "light_mode": light_mode,
                     "module_state": module_state,
+                    "charging": parameters.get("charging"),
                     "errors": parameters.get("error_code"),
-                    "motor_battery_state": None,
-                    "module_battery_state": None,
-                    "motor_battery_level": None,
-                    "module_battery_level": None,
                 }
             finally:
                 try:
@@ -180,23 +176,31 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
             sx_client = SXClient(client, self._encryption_key)
             parameters = await sx_client.get_parameters()
-            lock_state = await sx_client.get_lock_state()
-            power_level = await sx_client.get_power_level()
+            
+            lock_state_map = {0: "UNLOCKED", 1: "LOCKED", 2: "AWAITING_UNLOCK"}
+            lock_state = lock_state_map.get(parameters.get("lock_state"), "UNKNOWN")
+
+            module_state_map = {
+                0: "ON", 1: "OFF", 2: "SHIPPING", 3: "STANDBY",
+                4: "ALARM_ONE", 5: "ALARM_TWO", 6: "ALARM_THREE", 7: "SLEEPING", 8: "TRACKING"
+            }
+            module_state = module_state_map.get(parameters.get("module_state"), "UNKNOWN")
+
+            light_mode_map = {0: "AUTO", 1: "ON", 2: "OFF", 3: "REAR_FLASH", 4: "REAR_FLASH_OFF"}
+            light_mode = light_mode_map.get(parameters.get("light_mode"), "UNKNOWN")
+
             return {
                 "available": True,
                 "battery_level": parameters.get("battery_level"),
                 "module_level": parameters.get("module_level"),
-                "lock_state": lock_state.name if lock_state else "unknown",
-                "distance_travelled": await sx_client.get_distance_travelled(),
-                "power_level": _to_int(power_level) if power_level is not None else None,
-                "speed": await sx_client.get_speed(),
-                "light_mode": await sx_client.get_light_mode(),
-                "module_state": None,
-                "errors": await sx_client.get_error_codes(),
-                "motor_battery_state": None,
-                "module_battery_state": None,
-                "motor_battery_level": None,
-                "module_battery_level": None,
+                "lock_state": lock_state,
+                "distance_travelled": parameters.get("distance"),
+                "power_level": parameters.get("power_level"),
+                "region": parameters.get("region"),
+                "light_mode": light_mode,
+                "module_state": module_state,
+                "charging": parameters.get("charging"),
+                "errors": parameters.get("error_code"),
             }
         finally:
             try:

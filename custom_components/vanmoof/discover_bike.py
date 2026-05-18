@@ -25,7 +25,7 @@ class DiscoverBike:
         _LOGGER.debug(f"Starting bike discovery process for MAC address {mac_address} with polling interval {polling_interval} seconds...")
 
         try:
-            devices = await BleakScanner.discover()
+            devices = await BleakScanner.discover(timeout=10.0)
             _LOGGER.debug(f"Discovered {len(devices)} devices.")
 
             if not devices:
