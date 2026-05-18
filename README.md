@@ -13,7 +13,7 @@ If you appreciate the integration: [Buy me a Beer](https://www.paypal.com/paypal
 
 ## Features
 
-- **BLE Connectivity** — Works with native Bluetooth and BLE proxies (ESPHome, Shelly, etc.)
+- **BLE Connectivity** — Works with native Bluetooth and BLE proxies(ESPhome, not Shelly!.
 - Bike presence detection
 - Battery level sensor
 - Module battery sensor
