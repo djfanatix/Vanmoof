@@ -19,6 +19,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_entitie
         [
             VanMoofBatterySensor(coordinator, config_entry, mac_address),
             VanMoofModuleLevelSensor(coordinator, config_entry, mac_address),
+            VanMoofEstimatedRangeSensor(coordinator, config_entry, mac_address),
             VanMoofChargingSensor(coordinator, config_entry, mac_address),
             VanMoofLockStateSensor(coordinator, config_entry, mac_address),
             VanMoofDistanceSensor(coordinator, config_entry, mac_address),
@@ -101,6 +102,77 @@ class VanMoofModuleLevelSensor(VanMoofSensor):
     @property
     def unit_of_measurement(self):
         return "%"
+
+
+class VanMoofEstimatedRangeSensor(VanMoofSensor):
+    """VanMoof estimated range sensor."""
+
+    FULL_BATTERY_RANGE_KM = {
+        "S1": {
+            "EU": {1: 90, 2: 75, 3: 60, 4: 48},
+            "US": {1: 80, 2: 65, 3: 53, 4: 43},
+        },
+        "S2": {
+            "EU": {1: 120, 2: 100, 3: 80, 4: 65},
+            "US": {1: 100, 2: 90, 3: 78, 4: 65},
+        },
+        "S3": {
+            "EU": {1: 145, 2: 120, 3: 95, 4: 75},
+            "US": {1: 120, 2: 100, 3: 85, 4: 70},
+        },
+    }
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Estimated Range", f"vanmoof_bike_{mac_address}_estimated_range")
+
+    @property
+    def state(self):
+        battery_level = self._to_int(self.coordinator.data.get("battery_level"))
+        power_level = self._to_int(self.coordinator.data.get("power_level"))
+        if battery_level is None or power_level is None:
+            return None
+
+        model = self._range_model()
+        region = self._range_region()
+        full_range = self.FULL_BATTERY_RANGE_KM.get(model, {}).get(region, {}).get(power_level)
+        if full_range is None:
+            return None
+
+        return round(full_range * battery_level / 100)
+
+    @property
+    def unit_of_measurement(self):
+        return "km"
+
+    def _range_model(self) -> str | None:
+        vanmoof_type = str(self._config_entry.data.get("vanmoof_type", "")).upper()
+        bike_name = str(self._config_entry.data.get("bike_name", "")).upper()
+        model_value = f"{vanmoof_type} {bike_name}"
+
+        if "S3" in model_value or "X3" in model_value or "SX3" in model_value:
+            return "S3"
+        if "S2" in model_value or "X2" in model_value:
+            return "S2"
+        if "S1" in model_value or "X1" in model_value or "SMARTBIKE" in model_value:
+            return "S1"
+        return None
+
+    def _range_region(self) -> str | None:
+        region = self.coordinator.data.get("region")
+        if region is None:
+            return None
+
+        region = str(region).upper()
+        if region in ("EU", "US"):
+            return region
+        return None
+
+    def _to_int(self, value):
+        if value is None:
+            return None
+        if isinstance(value, (bytes, bytearray)):
+            return int.from_bytes(value, "little")
+        return int(value)
 
 
 class VanMoofLockStateSensor(VanMoofSensor):

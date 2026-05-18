@@ -20,8 +20,31 @@ If you appreciate the integration: [Buy me a Beer](https://www.paypal.com/paypal
 - Lock state sensor
 - Distance travelled sensor
 - Power level sensor
+- Estimated range sensor
 - Light mode sensor
 - Error code
+
+## Estimated range
+
+The estimated range sensor calculates an approximate remaining range in kilometers based on:
+
+- battery percentage
+- current power level
+- region mode (`EU` or `US`)
+- bike model
+
+The values below are estimates for a full battery. The sensor scales them with the current battery level. For example, an S3 in EU mode on power level 2 uses `120 km` as the full-battery estimate, so at 50% battery the sensor reports about `60 km`.
+
+| Model | Mode | Level 1 | Level 2 | Level 3 | Level 4 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| S1 | EU | 90 km | 75 km | 60 km | 48 km |
+| S1 | US | 80 km | 65 km | 53 km | 43 km |
+| S2 | EU | 120 km | 100 km | 80 km | 65 km |
+| S2 | US | 100 km | 90 km | 78 km | 65 km |
+| S3 | EU | 145 km | 120 km | 95 km | 75 km |
+| S3 | US | 120 km | 100 km | 85 km | 70 km |
+
+Ranges depend on riding style, temperature, tire pressure, terrain, bike condition, wind, and rider weight, so this sensor should be treated as an estimate rather than an exact prediction.
 
 ## Installation
 
