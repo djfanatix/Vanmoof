@@ -8,6 +8,9 @@ A custom Home Assistant integration to connect to VanMoof e-bikes over Bluetooth
 
 This integration supports both older VanMoof SX1/S1 bikes and newer S3/X3 bikes. It provides bike telemetry sensors and a Bluetooth-based device tracker.
 
+## Donations
+If you appreciate the integration: [Buy me a Beer](https://www.paypal.com/paypalme/pieterverougstraete)
+
 ## Features
 
 - **BLE Connectivity** — Works with native Bluetooth and BLE proxies (ESPHome, Shelly, etc.)
@@ -27,7 +30,6 @@ This integration supports both older VanMoof SX1/S1 bikes and newer S3/X3 bikes.
 3. Add the integration through the Home Assistant UI using the "Add Integration" flow. 
    You need to provide your Vanmoof login and password to retrieve bike details and user key.
 4. The bike needs to be in ble reach of HA or ESP Proxy to do initial connection.
-
 
 ## Notes
 
