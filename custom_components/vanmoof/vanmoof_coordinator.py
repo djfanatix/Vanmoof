@@ -114,17 +114,29 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Discovered %s BLE devices while searching for VanMoof bike.", len(devices))
 
             if not devices:
-                raise UpdateFailed("No Bluetooth devices discovered.")
+                _LOGGER.debug("No Bluetooth devices discovered; marking VanMoof bike as not home.")
+                return self._not_home_data()
 
             bike_device = self._find_bike_device(devices)
 
             if not bike_device:
-                raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
+                _LOGGER.debug("VanMoof bike with MAC %s not found; marking as not home.", self._mac_address)
+                return self._not_home_data()
 
-            client = await connect_bleak_client(bike_device)
+            try:
+                client = await connect_bleak_client(bike_device)
+            except Exception as err:
+                _LOGGER.debug(
+                    "Unable to connect to VanMoof bike %s; marking as not home: %s",
+                    self._mac_address,
+                    err,
+                )
+                return self._not_home_data()
+
             try:
                 if not client.is_connected:
-                    raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
+                    _LOGGER.debug("Unable to connect to VanMoof bike %s; marking as not home.", self._mac_address)
+                    return self._not_home_data()
 
                 if _is_sx3_bike(self._vanmoof_type, self._bike_model):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
@@ -156,6 +168,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 return {
                     "available": True,
+                    "present": True,
                     "battery_level": parameters.get("battery_level"),
                     "module_level": parameters.get("module_level"),
                     "lock_state": lock_state,
@@ -176,6 +189,26 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error(f"Error during bike data update: {e}")
             raise UpdateFailed(f"Error updating bike data: {e}")
 
+    def _not_home_data(self) -> dict[str, Any]:
+        """Build coordinator data when the bike is not currently reachable."""
+        return {
+            "available": False,
+            "present": False,
+            "battery_level": None,
+            "module_level": None,
+            "lock_state": None,
+            "distance_travelled": None,
+            "power_level": None,
+            "region": None,
+            "light_mode": None,
+            "module_state": None,
+            "charging": None,
+            "errors": None,
+            "speed": None,
+            "motor_battery_state": None,
+            "module_battery_state": None,
+        }
+
     async def _async_read_standard_battery(self, client) -> int | None:
         """Read the standard BLE battery characteristic when an older bike exposes it."""
         try:
@@ -192,6 +225,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         """Build coordinator data for bikes without the SX/S3 encrypted services."""
         return {
             "available": True,
+            "present": True,
             "battery_level": battery_level,
             "module_level": None,
             "lock_state": None,
@@ -240,6 +274,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
         return {
             "available": True,
+            "present": True,
             "battery_level": battery_level,
             "module_level": await self._async_read_optional(
                 "module_level", sx_client.get_module_battery_level
@@ -273,17 +308,21 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Discovered %s BLE devices while searching for VanMoof bike.", len(devices))
 
         if not devices:
-            raise UpdateFailed("No Bluetooth devices discovered.")
+            return self._not_home_data()
 
         bike_device = self._find_bike_device(devices)
 
         if not bike_device:
-            raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
+            return self._not_home_data()
 
-        client = await connect_bleak_client(bike_device)
+        try:
+            client = await connect_bleak_client(bike_device)
+        except Exception:
+            return self._not_home_data()
+
         try:
             if not client.is_connected:
-                raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
+                return self._not_home_data()
 
             if _is_sx3_bike(self._vanmoof_type, self._bike_model):
                 sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
@@ -313,6 +352,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
             return {
                 "available": True,
+                "present": True,
                 "battery_level": parameters.get("battery_level"),
                 "module_level": parameters.get("module_level"),
                 "lock_state": lock_state,

@@ -43,7 +43,8 @@ class VanMoofDeviceTracker(CoordinatorEntity, TrackerEntity):
     @property
     def state(self):
         """Return the state of the device tracker (home/not_home)."""
-        if self.coordinator.data.get("available"):
+        data = self.coordinator.data or {}
+        if data.get("present"):
             return STATE_HOME
         return STATE_NOT_HOME
 

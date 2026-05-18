@@ -106,10 +106,20 @@ class RetrieveEncryptionKey:
                 
                 _LOGGER.debug("Bike details found: %s", bike_details)
 
-                bikes = [
-                    RetrieveEncryptionKey._parse_bike_detail(bike_detail)
-                    for bike_detail in bike_details
-                ]
+                bikes = []
+                for index, bike_detail in enumerate(bike_details):
+                    try:
+                        bikes.append(RetrieveEncryptionKey._parse_bike_detail(bike_detail))
+                    except Exception as err:
+                        _LOGGER.warning(
+                            "Skipping VanMoof bike detail at index %s because it is incomplete: %s",
+                            index,
+                            err,
+                        )
+
+                if not bikes:
+                    raise NoBikeDetails("No usable bike details found.")
+
                 for bike in bikes:
                     _LOGGER.debug(
                         "Parsed bike: name=%s mac=%s model=%s bleProfile=%s userKeyId=%s",

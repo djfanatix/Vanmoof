@@ -20,6 +20,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_entitie
             VanMoofBatterySensor(coordinator, config_entry, mac_address),
             VanMoofModuleLevelSensor(coordinator, config_entry, mac_address),
             VanMoofEstimatedRangeSensor(coordinator, config_entry, mac_address),
+            VanMoofEvccStatusSensor(coordinator, config_entry, mac_address),
             VanMoofChargingSensor(coordinator, config_entry, mac_address),
             VanMoofLockStateSensor(coordinator, config_entry, mac_address),
             VanMoofDistanceSensor(coordinator, config_entry, mac_address),
@@ -52,7 +53,13 @@ class VanMoofSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def available(self):
-        return self.coordinator.data is not None
+        return True
+
+    def _data(self):
+        return self.coordinator.data or {}
+
+    def _value(self, key):
+        return self._data().get(key)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -74,7 +81,7 @@ class VanMoofBatterySensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("battery_level")
+        return self._value("battery_level")
 
     @property
     def device_class(self):
@@ -93,7 +100,7 @@ class VanMoofModuleLevelSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("module_level")
+        return self._value("module_level")
 
     @property
     def device_class(self):
@@ -127,8 +134,8 @@ class VanMoofEstimatedRangeSensor(VanMoofSensor):
 
     @property
     def state(self):
-        battery_level = self._to_int(self.coordinator.data.get("battery_level"))
-        power_level = self._to_int(self.coordinator.data.get("power_level"))
+        battery_level = self._to_int(self._value("battery_level"))
+        power_level = self._to_int(self._value("power_level"))
         if battery_level is None or power_level is None:
             return None
 
@@ -182,7 +189,7 @@ class VanMoofEstimatedRangeSensor(VanMoofSensor):
         return "S1"
 
     def _range_region(self) -> str | None:
-        region = self.coordinator.data.get("region")
+        region = self._value("region")
         if region is None:
             return "EU"
 
@@ -211,7 +218,22 @@ class VanMoofLockStateSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("lock_state")
+        return self._value("lock_state")
+
+
+class VanMoofEvccStatusSensor(VanMoofSensor):
+    """VanMoof EVCC status helper sensor."""
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike EVCC Status", f"vanmoof_bike_{mac_address}_evcc_status")
+
+    @property
+    def state(self):
+        if not self._data().get("present"):
+            return "a"
+        if self._value("charging") == "CHARGING":
+            return "c"
+        return "b"
 
 
 class VanMoofDistanceSensor(VanMoofSensor):
@@ -222,7 +244,7 @@ class VanMoofDistanceSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("distance_travelled")
+        return self._value("distance_travelled")
 
     @property
     def unit_of_measurement(self):
@@ -237,7 +259,7 @@ class VanMoofPowerLevelSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("power_level")
+        return self._value("power_level")
 
 
 class VanMoofRegionSensor(VanMoofSensor):
@@ -248,7 +270,7 @@ class VanMoofRegionSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("region")
+        return self._value("region")
 
 
 class VanMoofLightModeSensor(VanMoofSensor):
@@ -259,7 +281,7 @@ class VanMoofLightModeSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("light_mode")
+        return self._value("light_mode")
 
 
 class VanMoofModuleStateSensor(VanMoofSensor):
@@ -270,7 +292,7 @@ class VanMoofModuleStateSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("module_state")
+        return self._value("module_state")
 
 
 class VanMoofChargingSensor(VanMoofSensor):
@@ -281,7 +303,7 @@ class VanMoofChargingSensor(VanMoofSensor):
 
     @property
     def state(self):
-        return self.coordinator.data.get("charging")
+        return self._value("charging")
 
 
 class VanMoofErrorCodeSensor(VanMoofSensor):
@@ -310,7 +332,7 @@ class VanMoofErrorCodeSensor(VanMoofSensor):
 
     @property
     def state(self):
-        errors = self.coordinator.data.get("errors")
+        errors = self._value("errors")
         if isinstance(errors, int):
             message = self.ERROR_MESSAGES.get(errors, "Unknown Error")
             return f"{message} ({errors})"
