@@ -59,7 +59,7 @@ class VanMoofDeviceTracker(CoordinatorEntity, TrackerEntity):
             identifiers={(DOMAIN, self._mac_address)},
             name=self._config_entry.data.get("bike_name", f"VanMoof Bike ({self._mac_address})"),
             manufacturer="VanMoof",
-            model=self._config_entry.data.get("vanmoof_type", "Unknown"),
+            model=self._config_entry.data.get("bike_model") or self._config_entry.data.get("vanmoof_type", "Unknown"),
             serial_number=self._config_entry.data.get("serial_number", self._mac_address),
         )
 

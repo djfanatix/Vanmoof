@@ -16,9 +16,11 @@ class VanMoofHub:
         """Authenticate with the VanMoof API."""
         try:
             _LOGGER.debug("Retrieving encryption key from VanMoof servers")
-            self.auth_key, self.user_key_id = await RetrieveEncryptionKey.query(
+            result = await RetrieveEncryptionKey.query(
                 username, password
             )
+            self.auth_key = result[0]
+            self.user_key_id = result[1]
 
             if not self.auth_key:
                 _LOGGER.warning("Failed to retrieve the encryption key.")

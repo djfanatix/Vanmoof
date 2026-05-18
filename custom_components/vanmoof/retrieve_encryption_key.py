@@ -73,6 +73,24 @@ class RetrieveEncryptionKey:
                     raise Exception("No 'bleProfile' found in bike details.")
                 
                 _LOGGER.debug("bleProfile: %s", vanmoof_type)
+
+                # Extract model information when available. The API has used
+                # different field names over time, so keep a combined string
+                # with all useful model hints.
+                model_details = bike_details[0].get("modelDetails") or {}
+                bike_model_parts = [
+                    bike_details[0].get("model"),
+                    bike_details[0].get("modelName"),
+                    bike_details[0].get("modelCode"),
+                    bike_details[0].get("series"),
+                    bike_details[0].get("bikeType"),
+                    bike_details[0].get("controller"),
+                    bike_details[0].get("frameShape"),
+                    model_details.get("Edition"),
+                    vanmoof_type,
+                ]
+                bike_model = " ".join(str(part) for part in bike_model_parts if part)
+                _LOGGER.debug("Bike model: %s", bike_model)
                 
                 # Extract bike name
                 bike_name = bike_details[0].get("name", "VanMoof Bike")
@@ -106,10 +124,10 @@ class RetrieveEncryptionKey:
                 if user_key_id is None:
                     _LOGGER.warning("No 'userKeyId' found. This may be an older bike model (S1, etc.).")
                     # Consider returning only encryption_key or making it optional for older bikes
-                    return encryption_key, None, mac_address, vanmoof_type, bike_name, serial_number
+                    return encryption_key, None, mac_address, vanmoof_type, bike_name, serial_number, bike_model
 
                 # Return encryption key, user key id, mac address, type, name, and serial
-                return encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number
+                return encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number, bike_model
 
             # Fallback for non-Home Assistant callers. Home Assistant passes its shared
             # httpx client so SSL setup is not performed inside the event loop here.

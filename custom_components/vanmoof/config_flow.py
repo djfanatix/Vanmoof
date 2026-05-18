@@ -31,6 +31,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.mac_address = None
         self.bike_name = None
         self.serial_number = None
+        self.bike_model = None
         self.vanmoof_type = None
         self.polling_interval = DEFAULT_POLLING_INTERVAL
         super().__init__()
@@ -48,7 +49,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Step 1: Retrieve the encryption key and bike details
             try:
-                encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number = await RetrieveEncryptionKey.query(
+                encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number, bike_model = await RetrieveEncryptionKey.query(
                     self.username,
                     self.password,
                     get_async_client(self.hass),
@@ -60,10 +61,12 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.vanmoof_type = vanmoof_type
                 self.bike_name = bike_name
                 self.serial_number = serial_number
+                self.bike_model = bike_model
 
                 _LOGGER.debug("Bike MAC address: %s", self.mac_address)
                 _LOGGER.debug("Bike name: %s", self.bike_name)
                 _LOGGER.debug("Serial number: %s", self.serial_number)
+                _LOGGER.debug("Bike model: %s", self.bike_model)
 
             # Proceed to Step 2: Discover the nearby bike
                 return await self.async_step_discover_bike()
@@ -116,6 +119,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_POLLING_INTERVAL: self.polling_interval,
                         "vanmoof_type": self.vanmoof_type,
                         "bike_name": self.bike_name,
+                        "bike_model": self.bike_model,
                         "serial_number": self.serial_number,
                         "client_type": client_type,
                     },

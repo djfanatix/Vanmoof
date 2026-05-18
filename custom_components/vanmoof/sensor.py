@@ -61,7 +61,7 @@ class VanMoofSensor(CoordinatorEntity, SensorEntity):
             identifiers={(DOMAIN, self._mac_address)},
             name=self._config_entry.data.get("bike_name", f"VanMoof Bike ({self._mac_address})"),
             manufacturer="VanMoof",
-            model=self._config_entry.data.get("vanmoof_type", "Unknown"),
+            model=self._config_entry.data.get("bike_model") or self._config_entry.data.get("vanmoof_type", "Unknown"),
             serial_number=self._config_entry.data.get("serial_number", self._mac_address),
         )
 
@@ -134,6 +134,7 @@ class VanMoofEstimatedRangeSensor(VanMoofSensor):
 
         model = self._range_model()
         region = self._range_region()
+        power_level = min(max(power_level, 1), 4)
         full_range = self.FULL_BATTERY_RANGE_KM.get(model, {}).get(region, {}).get(power_level)
         if full_range is None:
             return None
@@ -145,34 +146,60 @@ class VanMoofEstimatedRangeSensor(VanMoofSensor):
         return "km"
 
     def _range_model(self) -> str | None:
+        bike_model = str(self._config_entry.data.get("bike_model", "")).upper()
         vanmoof_type = str(self._config_entry.data.get("vanmoof_type", "")).upper()
         bike_name = str(self._config_entry.data.get("bike_name", "")).upper()
-        model_value = f"{vanmoof_type} {bike_name}"
+        model_value = f"{bike_model} {vanmoof_type} {bike_name}"
 
-        if "S3" in model_value or "X3" in model_value or "SX3" in model_value:
+        if (
+            "S3" in model_value
+            or "X3" in model_value
+            or "SX3" in model_value
+            or "ES-3" in model_value
+            or "2020" in model_value
+            or "ELECTRIFIED_2020" in model_value
+        ):
             return "S3"
-        if "S2" in model_value or "X2" in model_value:
+        if (
+            "S2" in model_value
+            or "X2" in model_value
+            or "ES-2" in model_value
+            or "2018" in model_value
+            or "ELECTRIFIED_2018" in model_value
+        ):
             return "S2"
-        if "S1" in model_value or "X1" in model_value or "SMARTBIKE" in model_value:
+        if (
+            "S1" in model_value
+            or "X1" in model_value
+            or "ES-1" in model_value
+            or "2016" in model_value
+            or "2017" in model_value
+            or "SMARTBIKE" in model_value
+            or "ELECTRIFIED_2016" in model_value
+            or "ELECTRIFIED_2017" in model_value
+        ):
             return "S1"
-        return None
+        return "S1"
 
     def _range_region(self) -> str | None:
         region = self.coordinator.data.get("region")
         if region is None:
-            return None
+            return "EU"
 
         region = str(region).upper()
         if region in ("EU", "US"):
             return region
-        return None
+        return "EU"
 
     def _to_int(self, value):
         if value is None:
             return None
         if isinstance(value, (bytes, bytearray)):
             return int.from_bytes(value, "little")
-        return int(value)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
 
 class VanMoofLockStateSensor(VanMoofSensor):

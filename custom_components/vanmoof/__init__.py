@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         identifiers={(DOMAIN, entry.data["mac_address"])},
         name=entry.data.get("bike_name", f"VanMoof Bike ({entry.data['mac_address']})"),
         manufacturer="VanMoof",
-        model=entry.data.get("vanmoof_type", "Unknown"),
+        model=entry.data.get("bike_model") or entry.data.get("vanmoof_type", "Unknown"),
         serial_number=entry.data.get("serial_number", entry.data["mac_address"]),
         sw_version=None,
     )
