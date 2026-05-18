@@ -27,9 +27,7 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     return any(token in value for token in ("SX3", "S3", "X3"))
 
 
-def _is_s1_bike(vanmoof_type: str | None, user_key_id: int | None = None) -> bool:
-    if user_key_id is None:
-        return True
+def _is_s1_bike(vanmoof_type: str | None) -> bool:
     if not vanmoof_type:
         return False
     value = vanmoof_type.upper()
@@ -56,6 +54,11 @@ def _enum_name(value):
     if value is None:
         return None
     return getattr(value, "name", str(value))
+
+
+def _is_missing_service_error(err: Exception) -> bool:
+    message = str(err)
+    return "Service" in message and "not found on the BLE client" in message
 
 
 class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
@@ -104,7 +107,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 if not client.is_connected:
                     raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
-                if _is_s1_bike(self._vanmoof_type, self._user_key_id):
+                if _is_s1_bike(self._vanmoof_type):
                     battery_level = await self._async_read_standard_battery(client)
                     return {
                         "available": True,
@@ -126,7 +129,13 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                     return await self._async_get_sx3_data(sx_client)
 
                 sx_client = SXClient(client, self._encryption_key)
-                parameters = await sx_client.get_parameters()
+                try:
+                    parameters = await sx_client.get_parameters()
+                except Exception as err:
+                    if _is_missing_service_error(err):
+                        battery_level = await self._async_read_standard_battery(client)
+                        return self._s1_data(battery_level)
+                    raise
                 
                 # Convert lock_state enum
                 lock_state_map = {0: "UNLOCKED", 1: "LOCKED", 2: "AWAITING_UNLOCK"}
@@ -175,6 +184,25 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         if not data:
             return None
         return int(data[0])
+
+    def _s1_data(self, battery_level: int | None) -> dict[str, Any]:
+        """Build coordinator data for bikes without the SX/S3 encrypted services."""
+        return {
+            "available": True,
+            "battery_level": battery_level,
+            "module_level": None,
+            "lock_state": None,
+            "distance_travelled": None,
+            "power_level": None,
+            "region": None,
+            "light_mode": None,
+            "module_state": None,
+            "charging": None,
+            "errors": None,
+            "speed": None,
+            "motor_battery_state": None,
+            "module_battery_state": None,
+        }
 
     async def _async_read_optional(
         self,
@@ -257,21 +285,9 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             if not client.is_connected:
                 raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
-            if _is_s1_bike(self._vanmoof_type, self._user_key_id):
+            if _is_s1_bike(self._vanmoof_type):
                 battery_level = await self._async_read_standard_battery(client)
-                return {
-                    "available": True,
-                    "battery_level": battery_level,
-                    "module_level": None,
-                    "lock_state": None,
-                    "distance_travelled": None,
-                    "power_level": None,
-                    "region": None,
-                    "light_mode": None,
-                    "module_state": None,
-                    "charging": None,
-                    "errors": None,
-                }
+                return self._s1_data(battery_level)
 
             if _is_sx3_bike(self._vanmoof_type):
                 sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
@@ -279,7 +295,13 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 return await self._async_get_sx3_data(sx_client)
 
             sx_client = SXClient(client, self._encryption_key)
-            parameters = await sx_client.get_parameters()
+            try:
+                parameters = await sx_client.get_parameters()
+            except Exception as err:
+                if _is_missing_service_error(err):
+                    battery_level = await self._async_read_standard_battery(client)
+                    return self._s1_data(battery_level)
+                raise
             
             lock_state_map = {0: "UNLOCKED", 1: "LOCKED", 2: "AWAITING_UNLOCK"}
             lock_state = lock_state_map.get(parameters.get("lock_state"), "UNKNOWN")

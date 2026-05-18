@@ -13,9 +13,7 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     return any(token in value for token in ("SX3", "S3", "X3"))
 
 
-def _is_s1_bike(vanmoof_type: str | None, user_key_id: int | None = None) -> bool:
-    if user_key_id is None:
-        return True
+def _is_s1_bike(vanmoof_type: str | None) -> bool:
     if not vanmoof_type:
         return False
     value = vanmoof_type.upper()
@@ -26,6 +24,11 @@ def _is_s1_bike(vanmoof_type: str | None, user_key_id: int | None = None) -> boo
         or "SMART_S" in value
         or "ELECTRIFIED" in value
     )
+
+
+def _is_missing_service_error(err: Exception) -> bool:
+    message = str(err)
+    return "Service" in message and "not found on the BLE client" in message
 
 
 class DiscoverBike:
@@ -60,7 +63,7 @@ class DiscoverBike:
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
                     try:
-                        if _is_s1_bike(vanmoof_type, user_key_id):
+                        if _is_s1_bike(vanmoof_type):
                             _LOGGER.info("Detected S1/SmartBike profile; skipping SX encrypted parameter read.")
                             return device, "S1Client"
 
@@ -72,9 +75,15 @@ class DiscoverBike:
                             return device, "SX3Client"
 
                         sx_client = SXClient(bleak_client, encryption_key)
-                        battery_level = await sx_client.get_discovery()
-                        _LOGGER.info(f"SX bike battery level: {battery_level}%")
-                        return device, "SXClient"
+                        try:
+                            battery_level = await sx_client.get_discovery()
+                            _LOGGER.info(f"SX bike battery level: {battery_level}%")
+                            return device, "SXClient"
+                        except Exception as err:
+                            if _is_missing_service_error(err):
+                                _LOGGER.info("SX service is not available; falling back to S1/SmartBike mode.")
+                                return device, "S1Client"
+                            raise
                     finally:
                         try:
                             await bleak_client.disconnect()
