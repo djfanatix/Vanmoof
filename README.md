@@ -13,7 +13,7 @@ If you appreciate the integration: [Buy me a Beer](https://www.paypal.com/paypal
 
 ## Features
 
-- **BLE Connectivity** — Works with native Bluetooth and BLE proxies (ESPHome, Shelly, etc.)
+- **BLE Connectivity** — Works with native Bluetooth and BLE proxies(ESPhome, not Shelly!).
 - Bike presence detection
 - Battery level sensor
 - Module battery sensor
@@ -21,7 +21,7 @@ If you appreciate the integration: [Buy me a Beer](https://www.paypal.com/paypal
 - Distance travelled sensor
 - Power level sensor
 - Light mode sensor
-- Module state, error code, motor battery state, and module battery state for S3/X3
+- Error code
 
 ## Installation
 
