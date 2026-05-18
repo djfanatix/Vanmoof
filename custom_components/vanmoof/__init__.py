@@ -1,6 +1,7 @@
 """VanMoof integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -60,12 +61,15 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a VanMoof config entry."""
-    unload_ok = all(
-        await hass.config_entries.async_forward_entry_unload(entry, platform)
-        for platform in PLATFORMS
+    unload_results = await asyncio.gather(
+        *(
+            hass.config_entries.async_forward_entry_unload(entry, platform)
+            for platform in PLATFORMS
+        )
     )
+    unload_ok = all(unload_results)
 
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop(entry.entry_id, None)
 
     return unload_ok

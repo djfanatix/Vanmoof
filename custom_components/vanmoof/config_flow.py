@@ -1,8 +1,15 @@
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
-from .const import DOMAIN
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.helpers.httpx_client import get_async_client
+
+from .const import (
+    CONF_POLLING_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
+    DOMAIN,
+    MAX_POLLING_INTERVAL,
+    MIN_POLLING_INTERVAL,
+)
 from .retrieve_encryption_key import InvalidAuth, RetrieveEncryptionKey
 from .discover_bike import DiscoverBike
 
@@ -25,7 +32,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.bike_name = None
         self.serial_number = None
         self.vanmoof_type = None
-        self.polling_interval = 300  # Default to 300 seconds (5 minutes)
+        self.polling_interval = DEFAULT_POLLING_INTERVAL
         super().__init__()
 
     async def async_step_user(self, user_input=None):
@@ -33,14 +40,18 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         errors = {}
         if user_input is not None:
-            self.username = user_input["username"]
-            self.password = user_input["password"]
-            self.polling_interval = user_input.get("polling_interval", 300)  # Use the user-provided polling interval
+            self.username = user_input[CONF_USERNAME]
+            self.password = user_input[CONF_PASSWORD]
+            self.polling_interval = user_input.get(
+                CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL
+            )
 
             # Step 1: Retrieve the encryption key and bike details
             try:
                 encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number = await RetrieveEncryptionKey.query(
-                    self.username, self.password
+                    self.username,
+                    self.password,
+                    get_async_client(self.hass),
                 )
 
                 self.encryption_key = encryption_key
@@ -102,7 +113,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "encryption_key": self.encryption_key,
                         "user_key_id": self.user_key_id,
                         "mac_address": self.mac_address,
-                        "polling_interval": self.polling_interval,
+                        CONF_POLLING_INTERVAL: self.polling_interval,
                         "vanmoof_type": self.vanmoof_type,
                         "bike_name": self.bike_name,
                         "serial_number": self.serial_number,
@@ -126,26 +137,24 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # This is where you define the form inputs
         return vol.Schema(
             {
-                vol.Required("username"): str,
-                vol.Required("password"): str,
-                vol.Optional("polling_interval", default=300): vol.All(int, vol.Range(min=10, max=3600)),
+                vol.Required(CONF_USERNAME): str,
+                vol.Required(CONF_PASSWORD): str,
+                vol.Optional(
+                    CONF_POLLING_INTERVAL, default=DEFAULT_POLLING_INTERVAL
+                ): vol.All(
+                    int,
+                    vol.Range(
+                        min=MIN_POLLING_INTERVAL,
+                        max=MAX_POLLING_INTERVAL,
+                    ),
+                ),
             }
         )
 
-    def async_get_options_flow(self, config_entry):
+    @staticmethod
+    def async_get_options_flow(config_entry):
         """Create options flow."""
         return VanMoofOptionsFlow(config_entry)
-
-    # Add this method to indicate successful setup
-    async def async_setup_entry(self, hass: HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
-        """Set up the VanMoof integration."""
-        try:
-            # If the entry has been created successfully, return True
-            _LOGGER.info("VanMoof setup completed successfully")
-            return True
-        except Exception as e:
-            _LOGGER.error("Error during setup: %s", e)
-            return False
 
 
 class VanMoofOptionsFlow(config_entries.OptionsFlow):
@@ -153,21 +162,34 @@ class VanMoofOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        current_polling_interval = self._config_entry.options.get(
+            CONF_POLLING_INTERVAL,
+            self._config_entry.data.get(
+                CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL
+            ),
+        )
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
-                        "polling_interval",
-                        default=self.config_entry.options.get("polling_interval", self.config_entry.data.get("polling_interval", 300)),
-                    ): vol.All(int, vol.Range(min=10, max=3600)),
+                        CONF_POLLING_INTERVAL,
+                        default=current_polling_interval,
+                    ): vol.All(
+                        int,
+                        vol.Range(
+                            min=MIN_POLLING_INTERVAL,
+                            max=MAX_POLLING_INTERVAL,
+                        ),
+                    ),
                 }
             ),
         )

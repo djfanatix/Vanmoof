@@ -12,6 +12,22 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     value = vanmoof_type.upper()
     return any(token in value for token in ("SX3", "S3", "X3"))
 
+
+def _is_s1_bike(vanmoof_type: str | None, user_key_id: int | None = None) -> bool:
+    if user_key_id is None:
+        return True
+    if not vanmoof_type:
+        return False
+    value = vanmoof_type.upper()
+    return (
+        "S1" in value
+        or "X1" in value
+        or "SMARTBIKE" in value
+        or "SMART_S" in value
+        or "ELECTRIFIED" in value
+    )
+
+
 class DiscoverBike:
     @staticmethod
     async def query(
@@ -43,17 +59,27 @@ class DiscoverBike:
                     bleak_client = await connect_bleak_client(device)
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
-                    if _is_sx3_bike(vanmoof_type):
-                        sx_client = SX3Client(bleak_client, encryption_key, user_key_id)
-                        await sx_client.authenticate()
-                        battery_level = await sx_client.get_battery_level()
-                        _LOGGER.info(f"SX3 bike battery level: {battery_level}%")
-                        return device, "SX3Client"
+                    try:
+                        if _is_s1_bike(vanmoof_type, user_key_id):
+                            _LOGGER.info("Detected S1/SmartBike profile; skipping SX encrypted parameter read.")
+                            return device, "S1Client"
 
-                    sx_client = SXClient(bleak_client, encryption_key)
-                    battery_level = await sx_client.get_discovery()
-                    _LOGGER.info(f"SX bike battery level: {battery_level}%")
-                    return device, "SXClient"
+                        if _is_sx3_bike(vanmoof_type):
+                            sx_client = SX3Client(bleak_client, encryption_key, user_key_id)
+                            await sx_client.authenticate()
+                            battery_level = await sx_client.get_battery_level()
+                            _LOGGER.info(f"SX3 bike battery level: {battery_level}%")
+                            return device, "SX3Client"
+
+                        sx_client = SXClient(bleak_client, encryption_key)
+                        battery_level = await sx_client.get_discovery()
+                        _LOGGER.info(f"SX bike battery level: {battery_level}%")
+                        return device, "SXClient"
+                    finally:
+                        try:
+                            await bleak_client.disconnect()
+                        except Exception:
+                            pass
 
             _LOGGER.warning(f"No bike found with MAC address: {mac_address}")
             return None, None

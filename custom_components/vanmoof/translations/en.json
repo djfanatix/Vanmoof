@@ -5,12 +5,22 @@
         "data": {
           "username": "Username",
           "password": "Password",
-          "polling_interval": "Polling interval (seconds)"
+          "polling_interval": "Polling interval"
         },
         "description": "Enter your VanMoof account credentials."
       },
       "discover_bike": {
         "description": "Discover your VanMoof bike using the provided account details."
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "polling_interval": "Polling interval"
+        },
+        "description": "Set how often Home Assistant polls the bike, in seconds."
       }
     }
   },

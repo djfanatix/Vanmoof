@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import logging
+import asyncio
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
+from typing import Any
 
 from bleak import BleakScanner
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
+from .const import CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL, DOMAIN
 from .bleak_client_utils import connect_bleak_client
 from .sx_client import SXClient
 from .sx3_client import SX3Client
@@ -24,12 +27,35 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     return any(token in value for token in ("SX3", "S3", "X3"))
 
 
+def _is_s1_bike(vanmoof_type: str | None, user_key_id: int | None = None) -> bool:
+    if user_key_id is None:
+        return True
+    if not vanmoof_type:
+        return False
+    value = vanmoof_type.upper()
+    return (
+        "S1" in value
+        or "X1" in value
+        or "SMARTBIKE" in value
+        or "SMART_S" in value
+        or "ELECTRIFIED" in value
+    )
+
+
 def _to_int(value):
+    if value is None:
+        return None
     if isinstance(value, (bytes, bytearray)):
         return int.from_bytes(value, "little")
     if isinstance(value, str) and value.isdigit():
         return int(value)
     return int(value)
+
+
+def _enum_name(value):
+    if value is None:
+        return None
+    return getattr(value, "name", str(value))
 
 
 class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
@@ -44,8 +70,8 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Get polling interval from options if available, otherwise from data
         polling_interval_seconds = entry.options.get(
-            "polling_interval", 
-            entry.data.get("polling_interval", 300)
+            CONF_POLLING_INTERVAL,
+            entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL),
         )
         update_interval = timedelta(seconds=polling_interval_seconds)
 
@@ -78,23 +104,26 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 if not client.is_connected:
                     raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
+                if _is_s1_bike(self._vanmoof_type, self._user_key_id):
+                    battery_level = await self._async_read_standard_battery(client)
+                    return {
+                        "available": True,
+                        "battery_level": battery_level,
+                        "module_level": None,
+                        "lock_state": None,
+                        "distance_travelled": None,
+                        "power_level": None,
+                        "region": None,
+                        "light_mode": None,
+                        "module_state": None,
+                        "charging": None,
+                        "errors": None,
+                    }
+
                 if _is_sx3_bike(self._vanmoof_type):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                     await sx_client.authenticate()
-                    return {
-                        "available": True,
-                        "battery_level": await sx_client.get_motor_battery_level(),
-                        "module_level": await sx_client.get_module_battery_level(),
-                        "lock_state": (await sx_client.get_lock_state()).name,
-                        "distance_travelled": await sx_client.get_distance_travelled(),
-                        "power_level": _to_int(await sx_client.get_power_level()),
-                        "speed": await sx_client.get_speed(),
-                        "light_mode": await sx_client.get_light_mode(),
-                        "module_state": await sx_client.get_module_state(),
-                        "errors": await sx_client.get_errors(),
-                        "motor_battery_state": await sx_client.get_motor_battery_state(),
-                        "module_battery_state": await sx_client.get_module_battery_state(),
-                    }
+                    return await self._async_get_sx3_data(sx_client)
 
                 sx_client = SXClient(client, self._encryption_key)
                 parameters = await sx_client.get_parameters()
@@ -135,6 +164,78 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error(f"Error during bike data update: {e}")
             raise UpdateFailed(f"Error updating bike data: {e}")
 
+    async def _async_read_standard_battery(self, client) -> int | None:
+        """Read the standard BLE battery characteristic when an older bike exposes it."""
+        try:
+            data = await client.read_gatt_char("00002a19-0000-1000-8000-00805f9b34fb")
+        except Exception as err:
+            _LOGGER.debug("S1 standard BLE battery characteristic is not available: %s", err)
+            return None
+
+        if not data:
+            return None
+        return int(data[0])
+
+    async def _async_read_optional(
+        self,
+        name: str,
+        reader: Callable[[], Awaitable[Any]],
+    ) -> Any:
+        """Read an optional SX3/X3 characteristic without failing the whole update."""
+        try:
+            return await reader()
+        except Exception as err:
+            _LOGGER.debug("Unable to read optional VanMoof S3/X3 value %s: %s", name, err)
+            return None
+
+    async def _async_get_sx3_battery_level(self, sx_client: SX3Client) -> int:
+        """Read S3/X3 battery level with a retry for occasional false 100% reports."""
+        battery_level = await sx_client.get_battery_level()
+        if battery_level != 100:
+            return battery_level
+
+        for _ in range(2):
+            await asyncio.sleep(5)
+            battery_level = await sx_client.get_battery_level()
+            if battery_level < 100:
+                return battery_level
+        return battery_level
+
+    async def _async_get_sx3_data(self, sx_client: SX3Client) -> dict[str, Any]:
+        """Fetch S3/X3 data, keeping the core pymoof-compatible reads mandatory."""
+        battery_level = await self._async_get_sx3_battery_level(sx_client)
+        lock_state = await sx_client.get_lock_state()
+        distance_travelled = await sx_client.get_distance_travelled()
+
+        return {
+            "available": True,
+            "battery_level": battery_level,
+            "module_level": await self._async_read_optional(
+                "module_level", sx_client.get_module_battery_level
+            ),
+            "lock_state": _enum_name(lock_state),
+            "distance_travelled": distance_travelled,
+            "power_level": _to_int(
+                await self._async_read_optional("power_level", sx_client.get_power_level)
+            ),
+            "speed": await self._async_read_optional("speed", sx_client.get_speed),
+            "region": None,
+            "light_mode": await self._async_read_optional(
+                "light_mode", sx_client.get_light_mode
+            ),
+            "module_state": await self._async_read_optional(
+                "module_state", sx_client.get_module_state
+            ),
+            "charging": None,
+            "errors": await self._async_read_optional("errors", sx_client.get_errors),
+            "motor_battery_state": await self._async_read_optional(
+                "motor_battery_state", sx_client.get_motor_battery_state
+            ),
+            "module_battery_state": await self._async_read_optional(
+                "module_battery_state", sx_client.get_module_battery_state
+            ),
+        }
+
     async def _async_update_direct(self):
         """Fetch data directly from the bike via Bleak when proxy helpers are unavailable."""
         devices = await BleakScanner.discover(timeout=8.0)
@@ -156,23 +257,26 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             if not client.is_connected:
                 raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
+            if _is_s1_bike(self._vanmoof_type, self._user_key_id):
+                battery_level = await self._async_read_standard_battery(client)
+                return {
+                    "available": True,
+                    "battery_level": battery_level,
+                    "module_level": None,
+                    "lock_state": None,
+                    "distance_travelled": None,
+                    "power_level": None,
+                    "region": None,
+                    "light_mode": None,
+                    "module_state": None,
+                    "charging": None,
+                    "errors": None,
+                }
+
             if _is_sx3_bike(self._vanmoof_type):
                 sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                 await sx_client.authenticate()
-                return {
-                    "available": True,
-                    "battery_level": await sx_client.get_motor_battery_level(),
-                    "module_level": await sx_client.get_module_battery_level(),
-                    "lock_state": (await sx_client.get_lock_state()).name,
-                    "distance_travelled": await sx_client.get_distance_travelled(),
-                    "power_level": _to_int(await sx_client.get_power_level()),
-                    "speed": await sx_client.get_speed(),
-                    "light_mode": await sx_client.get_light_mode(),
-                    "module_state": await sx_client.get_module_state(),
-                    "errors": await sx_client.get_errors(),
-                    "motor_battery_state": await sx_client.get_motor_battery_state(),
-                    "module_battery_state": await sx_client.get_module_battery_state(),
-                }
+                return await self._async_get_sx3_data(sx_client)
 
             sx_client = SXClient(client, self._encryption_key)
             parameters = await sx_client.get_parameters()

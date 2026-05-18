@@ -12,7 +12,7 @@ class NoBikeDetails(Exception):
 
 class RetrieveEncryptionKey:
     @staticmethod
-    async def query(username, password):
+    async def query(username, password, client=None):
         """
         This method handles the process of retrieving the encryption key, user key ID, 
         and the MAC address for a VanMoof bike using the provided username and password.
@@ -30,8 +30,7 @@ class RetrieveEncryptionKey:
         }
 
         try:
-            # Authenticate and get the token
-            async with httpx.AsyncClient() as client:
+            if client is not None:
                 response = await client.post(f"{API_URL}/authenticate", headers=headers)
                 response.raise_for_status()  # Raises an exception for HTTP errors
                 result = response.json()
@@ -92,6 +91,8 @@ class RetrieveEncryptionKey:
 
                 # Handle the case for old bikes (S1, etc.) that may not have a userKeyId
                 user_key_id = bike_keys.get("userKeyId") if "userKeyId" in bike_keys else None
+                if user_key_id is not None:
+                    user_key_id = int(user_key_id)
 
                 # Log the encryption key and user key ID for debugging purposes
                 _LOGGER.debug("Encryption Key: %s", encryption_key)
@@ -102,13 +103,22 @@ class RetrieveEncryptionKey:
                     raise Exception("Missing 'encryptionKey' in bike keys.")
 
                 # Handle missing userKeyId for older bikes
-                if not user_key_id:
+                if user_key_id is None:
                     _LOGGER.warning("No 'userKeyId' found. This may be an older bike model (S1, etc.).")
                     # Consider returning only encryption_key or making it optional for older bikes
                     return encryption_key, None, mac_address, vanmoof_type, bike_name, serial_number
 
                 # Return encryption key, user key id, mac address, type, name, and serial
                 return encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number
+
+            # Fallback for non-Home Assistant callers. Home Assistant passes its shared
+            # httpx client so SSL setup is not performed inside the event loop here.
+            async with httpx.AsyncClient() as fallback_client:
+                return await RetrieveEncryptionKey.query(
+                    username,
+                    password,
+                    fallback_client,
+                )
 
         except httpx.RequestError as e:
             # Handle network or HTTP request-related errors

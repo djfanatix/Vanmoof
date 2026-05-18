@@ -1,5 +1,6 @@
 import logging
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.const import UnitOfSpeed
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.entity import DeviceInfo
@@ -19,10 +20,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_entitie
         [
             VanMoofBatterySensor(coordinator, config_entry, mac_address),
             VanMoofModuleLevelSensor(coordinator, config_entry, mac_address),
+            VanMoofMotorBatteryStateSensor(coordinator, config_entry, mac_address),
+            VanMoofModuleBatteryStateSensor(coordinator, config_entry, mac_address),
             VanMoofChargingSensor(coordinator, config_entry, mac_address),
             VanMoofLockStateSensor(coordinator, config_entry, mac_address),
             VanMoofDistanceSensor(coordinator, config_entry, mac_address),
             VanMoofPowerLevelSensor(coordinator, config_entry, mac_address),
+            VanMoofSpeedSensor(coordinator, config_entry, mac_address),
             VanMoofRegionSensor(coordinator, config_entry, mac_address),
             VanMoofLightModeSensor(coordinator, config_entry, mac_address),
             VanMoofModuleStateSensor(coordinator, config_entry, mac_address),
@@ -141,6 +145,21 @@ class VanMoofPowerLevelSensor(VanMoofSensor):
         return self.coordinator.data.get("power_level")
 
 
+class VanMoofSpeedSensor(VanMoofSensor):
+    """VanMoof current speed sensor."""
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Speed", f"vanmoof_bike_{mac_address}_speed")
+
+    @property
+    def state(self):
+        return self.coordinator.data.get("speed")
+
+    @property
+    def unit_of_measurement(self):
+        return UnitOfSpeed.KILOMETERS_PER_HOUR
+
+
 class VanMoofRegionSensor(VanMoofSensor):
     """VanMoof bike region sensor."""
 
@@ -185,6 +204,28 @@ class VanMoofChargingSensor(VanMoofSensor):
         return self.coordinator.data.get("charging")
 
 
+class VanMoofMotorBatteryStateSensor(VanMoofSensor):
+    """VanMoof motor battery state sensor."""
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Motor Battery State", f"vanmoof_bike_{mac_address}_motor_battery_state")
+
+    @property
+    def state(self):
+        return self.coordinator.data.get("motor_battery_state")
+
+
+class VanMoofModuleBatteryStateSensor(VanMoofSensor):
+    """VanMoof module battery state sensor."""
+
+    def __init__(self, coordinator: VanMoofDataUpdateCoordinator, config_entry, mac_address: str):
+        super().__init__(coordinator, config_entry, mac_address, "VanMoof Bike Module Battery State", f"vanmoof_bike_{mac_address}_module_battery_state")
+
+    @property
+    def state(self):
+        return self.coordinator.data.get("module_battery_state")
+
+
 class VanMoofErrorCodeSensor(VanMoofSensor):
     """VanMoof error code sensor."""
 
@@ -216,4 +257,3 @@ class VanMoofErrorCodeSensor(VanMoofSensor):
             message = self.ERROR_MESSAGES.get(errors, "Unknown Error")
             return f"{message} ({errors})"
         return errors or "Unknown Error"
-
