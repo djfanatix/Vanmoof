@@ -29,6 +29,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.encryption_key = None
         self.user_key_id = None
         self.mac_address = None
+        self.ble_address = None
         self.bike_name = None
         self.serial_number = None
         self.bike_model = None
@@ -106,6 +107,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
 
                 _LOGGER.debug("Bike discovered successfully: %s", device)
+                self.ble_address = getattr(device, "address", self.mac_address)
 
                 # Final step: Return to finish the configuration
                 return self.async_create_entry(
@@ -116,6 +118,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "encryption_key": self.encryption_key,
                         "user_key_id": self.user_key_id,
                         "mac_address": self.mac_address,
+                        "ble_address": self.ble_address,
                         CONF_POLLING_INTERVAL: self.polling_interval,
                         "vanmoof_type": self.vanmoof_type,
                         "bike_name": self.bike_name,

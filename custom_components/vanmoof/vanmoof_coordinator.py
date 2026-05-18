@@ -48,11 +48,36 @@ def _is_missing_service_error(err: Exception) -> bool:
     return "Service" in message and "not found on the BLE client" in message
 
 
+def _compact_mac(mac_address: str | None) -> str:
+    if not mac_address:
+        return ""
+    return "".join(char for char in mac_address.upper() if char.isalnum())
+
+
+def _log_possible_mac_mismatch(device, mac_address: str) -> None:
+    """Log likely VanMoof BLE/API address mismatches for troubleshooting."""
+    api_mac = _compact_mac(mac_address)
+    device_name = (getattr(device, "name", "") or "").upper()
+    device_address = getattr(device, "address", "")
+
+    if not device_name or len(api_mac) < 4:
+        return
+
+    if api_mac[:4] in device_name and device_address.lower() != mac_address.lower():
+        _LOGGER.warning(
+            "VanMoof BLE address differs from API MAC. API MAC: %s, detected BLE address: %s, advertised name: %s.",
+            mac_address,
+            device_address,
+            device_name,
+        )
+
+
 class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage VanMoof bike data updates."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self._mac_address = entry.data["mac_address"]
+        self._ble_address = entry.data.get("ble_address")
         self._encryption_key = entry.data["encryption_key"]
         self._user_key_id = entry.data.get("user_key_id")
         self._vanmoof_type = entry.data.get("vanmoof_type")
@@ -81,10 +106,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             if not devices:
                 raise UpdateFailed("No Bluetooth devices discovered.")
 
-            bike_device = next(
-                (device for device in devices if device.address.lower() == self._mac_address.lower()),
-                None,
-            )
+            bike_device = self._find_bike_device(devices)
 
             if not bike_device:
                 raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
@@ -243,10 +265,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         if not devices:
             raise UpdateFailed("No Bluetooth devices discovered.")
 
-        bike_device = next(
-            (device for device in devices if device.address.lower() == self._mac_address.lower()),
-            None,
-        )
+        bike_device = self._find_bike_device(devices)
 
         if not bike_device:
             raise UpdateFailed(f"VanMoof bike with MAC {self._mac_address} not found.")
@@ -300,3 +319,30 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 await client.disconnect()
             except Exception:
                 pass
+
+    def _find_bike_device(self, devices):
+        """Find the bike by stored BLE address, API MAC, or advertised name prefix."""
+        for device in devices:
+            device_address = getattr(device, "address", "")
+            if self._ble_address and device_address.lower() == self._ble_address.lower():
+                return device
+            if device_address.lower() == self._mac_address.lower():
+                return device
+
+        api_mac = _compact_mac(self._mac_address)
+        if len(api_mac) < 4:
+            return None
+
+        for device in devices:
+            device_name = (getattr(device, "name", "") or "").upper()
+            if api_mac[:4] in device_name:
+                _log_possible_mac_mismatch(device, self._mac_address)
+                _LOGGER.debug(
+                    "Matched bike by advertised name prefix: %s (%s) for API MAC %s",
+                    device_name,
+                    getattr(device, "address", ""),
+                    self._mac_address,
+                )
+                return device
+
+        return None

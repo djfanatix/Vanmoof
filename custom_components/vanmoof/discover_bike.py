@@ -18,6 +18,50 @@ def _is_missing_service_error(err: Exception) -> bool:
     return "Service" in message and "not found on the BLE client" in message
 
 
+def _compact_mac(mac_address: str | None) -> str:
+    if not mac_address:
+        return ""
+    return "".join(char for char in mac_address.upper() if char.isalnum())
+
+
+def _device_matches_bike(device, mac_address: str) -> bool:
+    device_address = getattr(device, "address", "")
+    if device_address.lower() == mac_address.lower():
+        return True
+
+    api_mac = _compact_mac(mac_address)
+    device_name = (getattr(device, "name", "") or "").upper()
+    if len(api_mac) >= 4 and api_mac[:4] in device_name:
+        _LOGGER.debug(
+            "Matched bike by advertised name prefix: %s (%s) for API MAC %s",
+            device_name,
+            device_address,
+            mac_address,
+        )
+        return True
+
+    return False
+
+
+def _log_possible_mac_mismatch(device, mac_address: str) -> None:
+    """Log likely VanMoof BLE/API address mismatches for troubleshooting."""
+    api_mac = _compact_mac(mac_address)
+    device_name = (getattr(device, "name", "") or "").upper()
+    device_address = getattr(device, "address", "")
+
+    if not device_name or len(api_mac) < 4:
+        return
+
+    if api_mac[:4] in device_name and device_address.lower() != mac_address.lower():
+        _LOGGER.warning(
+            "VanMoof BLE address differs from API MAC. API MAC: %s, detected BLE address: %s, advertised name: %s. "
+            "The integration will use the detected BLE address for this setup.",
+            mac_address,
+            device_address,
+            device_name,
+        )
+
+
 class DiscoverBike:
     @staticmethod
     async def query(
@@ -41,8 +85,9 @@ class DiscoverBike:
             ## Loop through discovered devices to find one matching the provided MAC address
             for device in devices:
                 _LOGGER.debug(f"Discovered device: {device.name} ({device.address})")
+                _log_possible_mac_mismatch(device, mac_address)
 
-                if device.address.lower() == mac_address.lower():
+                if _device_matches_bike(device, mac_address):
                     # Found the device with the MAC address
                     _LOGGER.info(f"Found bike with MAC address: {device.name} ({device.address})")
 
