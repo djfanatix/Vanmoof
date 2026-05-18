@@ -11,6 +11,12 @@
       },
       "discover_bike": {
         "description": "Discover your VanMoof bike using the provided account details."
+      },
+      "select_bike": {
+        "data": {
+          "bike": "Bike"
+        },
+        "description": "Select the VanMoof bike you want to add."
       }
     }
   },

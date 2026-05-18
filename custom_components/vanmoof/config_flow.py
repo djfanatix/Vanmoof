@@ -34,6 +34,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.serial_number = None
         self.bike_model = None
         self.vanmoof_type = None
+        self.bikes = []
         self.polling_interval = DEFAULT_POLLING_INTERVAL
         super().__init__()
 
@@ -50,26 +51,16 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Step 1: Retrieve the encryption key and bike details
             try:
-                encryption_key, user_key_id, mac_address, vanmoof_type, bike_name, serial_number, bike_model = await RetrieveEncryptionKey.query(
+                self.bikes = await RetrieveEncryptionKey.query_bikes(
                     self.username,
                     self.password,
                     get_async_client(self.hass),
                 )
 
-                self.encryption_key = encryption_key
-                self.user_key_id = user_key_id
-                self.mac_address = mac_address
-                self.vanmoof_type = vanmoof_type
-                self.bike_name = bike_name
-                self.serial_number = serial_number
-                self.bike_model = bike_model
+                if len(self.bikes) > 1:
+                    return await self.async_step_select_bike()
 
-                _LOGGER.debug("Bike MAC address: %s", self.mac_address)
-                _LOGGER.debug("Bike name: %s", self.bike_name)
-                _LOGGER.debug("Serial number: %s", self.serial_number)
-                _LOGGER.debug("Bike model: %s", self.bike_model)
-
-            # Proceed to Step 2: Discover the nearby bike
+                self._set_selected_bike(self.bikes[0])
                 return await self.async_step_discover_bike()
 
             except InvalidAuth:
@@ -80,6 +71,25 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=self._create_data_schema(), errors=errors
+        )
+
+    async def async_step_select_bike(self, user_input=None):
+        """Let the user select the bike when the account has multiple bikes."""
+        errors = {}
+        bike_options = {
+            str(index): self._bike_option_label(bike)
+            for index, bike in enumerate(self.bikes)
+        }
+
+        if user_input is not None:
+            selected_bike = self.bikes[int(user_input["bike"])]
+            self._set_selected_bike(selected_bike)
+            return await self.async_step_discover_bike()
+
+        return self.async_show_form(
+            step_id="select_bike",
+            data_schema=vol.Schema({vol.Required("bike"): vol.In(bike_options)}),
+            errors=errors,
         )
 
     async def async_step_discover_bike(self, user_input=None):
@@ -97,6 +107,7 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self.encryption_key,
                     self.user_key_id,
                     self.vanmoof_type,
+                    self.bike_model,
                 )  # Pass encryption_key, user_key_id, and bike type
 
                 if not device:
@@ -138,6 +149,31 @@ class VanMoofConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+
+    def _set_selected_bike(self, bike):
+        """Store the selected API bike on the flow instance."""
+        self.encryption_key = bike["encryption_key"]
+        self.user_key_id = bike["user_key_id"]
+        self.mac_address = bike["mac_address"]
+        self.vanmoof_type = bike["vanmoof_type"]
+        self.bike_name = bike["bike_name"]
+        self.serial_number = bike["serial_number"]
+        self.bike_model = bike["bike_model"]
+
+        _LOGGER.debug("Selected bike MAC address: %s", self.mac_address)
+        _LOGGER.debug("Selected bike name: %s", self.bike_name)
+        _LOGGER.debug("Selected bike serial number: %s", self.serial_number)
+        _LOGGER.debug("Selected bike model: %s", self.bike_model)
+
+    def _bike_option_label(self, bike):
+        """Build a readable bike selection label."""
+        parts = [
+            bike.get("bike_name"),
+            bike.get("bike_model") or bike.get("vanmoof_type"),
+            bike.get("serial_number"),
+            bike.get("mac_address"),
+        ]
+        return " - ".join(str(part) for part in parts if part)
 
     def _create_data_schema(self):
         """Create the data schema for the form."""

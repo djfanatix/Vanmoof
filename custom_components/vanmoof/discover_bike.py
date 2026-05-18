@@ -6,11 +6,20 @@ from .sx3_client import SX3Client
 
 _LOGGER = logging.getLogger(__name__)
 
-def _is_sx3_bike(vanmoof_type: str | None) -> bool:
-    if not vanmoof_type:
-        return False
-    value = vanmoof_type.upper()
-    return any(token in value for token in ("SX3", "S3", "X3"))
+def _is_sx3_bike(vanmoof_type: str | None, bike_model: str | None = None) -> bool:
+    value = f"{vanmoof_type or ''} {bike_model or ''}".upper()
+    return any(
+        token in value
+        for token in (
+            "SX3",
+            "S3",
+            "X3",
+            "ES-3",
+            "ELECTRIFIED_2020",
+            "2020 S",
+            "2020 X",
+        )
+    )
 
 
 def _is_missing_service_error(err: Exception) -> bool:
@@ -70,6 +79,7 @@ class DiscoverBike:
         encryption_key: str,
         user_key_id: int | None = None,
         vanmoof_type: str | None = None,
+        bike_model: str | None = None,
     ):
         """Discover the nearby bike using the MAC address and connect to it."""
         _LOGGER.debug(f"Starting bike discovery process for MAC address {mac_address} with polling interval {polling_interval} seconds...")
@@ -95,7 +105,7 @@ class DiscoverBike:
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
                     try:
-                        if _is_sx3_bike(vanmoof_type):
+                        if _is_sx3_bike(vanmoof_type, bike_model):
                             sx_client = SX3Client(bleak_client, encryption_key, user_key_id)
                             await sx_client.authenticate()
                             battery_level = await sx_client.get_battery_level()

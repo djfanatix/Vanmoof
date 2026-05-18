@@ -20,11 +20,20 @@ from .sx3_client import SX3Client
 _LOGGER = logging.getLogger(__name__)
 
 
-def _is_sx3_bike(vanmoof_type: str | None) -> bool:
-    if not vanmoof_type:
-        return False
-    value = vanmoof_type.upper()
-    return any(token in value for token in ("SX3", "S3", "X3"))
+def _is_sx3_bike(vanmoof_type: str | None, bike_model: str | None = None) -> bool:
+    value = f"{vanmoof_type or ''} {bike_model or ''}".upper()
+    return any(
+        token in value
+        for token in (
+            "SX3",
+            "S3",
+            "X3",
+            "ES-3",
+            "ELECTRIFIED_2020",
+            "2020 S",
+            "2020 X",
+        )
+    )
 
 
 def _to_int(value):
@@ -81,6 +90,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         self._encryption_key = entry.data["encryption_key"]
         self._user_key_id = entry.data.get("user_key_id")
         self._vanmoof_type = entry.data.get("vanmoof_type")
+        self._bike_model = entry.data.get("bike_model")
         self._entry = entry
 
         # Get polling interval from options if available, otherwise from data
@@ -116,7 +126,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
                 if not client.is_connected:
                     raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
-                if _is_sx3_bike(self._vanmoof_type):
+                if _is_sx3_bike(self._vanmoof_type, self._bike_model):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                     await sx_client.authenticate()
                     return await self._async_get_sx3_data(sx_client)
@@ -275,7 +285,7 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             if not client.is_connected:
                 raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
 
-            if _is_sx3_bike(self._vanmoof_type):
+            if _is_sx3_bike(self._vanmoof_type, self._bike_model):
                 sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
                 await sx_client.authenticate()
                 return await self._async_get_sx3_data(sx_client)
