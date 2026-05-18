@@ -13,19 +13,6 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     return any(token in value for token in ("SX3", "S3", "X3"))
 
 
-def _is_s1_bike(vanmoof_type: str | None) -> bool:
-    if not vanmoof_type:
-        return False
-    value = vanmoof_type.upper()
-    return (
-        "S1" in value
-        or "X1" in value
-        or "SMARTBIKE" in value
-        or "SMART_S" in value
-        or "ELECTRIFIED" in value
-    )
-
-
 def _is_missing_service_error(err: Exception) -> bool:
     message = str(err)
     return "Service" in message and "not found on the BLE client" in message
@@ -63,10 +50,6 @@ class DiscoverBike:
                     _LOGGER.info(f"Successfully connected to {device.name} ({device.address})")
 
                     try:
-                        if _is_s1_bike(vanmoof_type):
-                            _LOGGER.info("Detected S1/SmartBike profile; skipping SX encrypted parameter read.")
-                            return device, "S1Client"
-
                         if _is_sx3_bike(vanmoof_type):
                             sx_client = SX3Client(bleak_client, encryption_key, user_key_id)
                             await sx_client.authenticate()

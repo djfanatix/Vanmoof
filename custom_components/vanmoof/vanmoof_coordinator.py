@@ -27,19 +27,6 @@ def _is_sx3_bike(vanmoof_type: str | None) -> bool:
     return any(token in value for token in ("SX3", "S3", "X3"))
 
 
-def _is_s1_bike(vanmoof_type: str | None) -> bool:
-    if not vanmoof_type:
-        return False
-    value = vanmoof_type.upper()
-    return (
-        "S1" in value
-        or "X1" in value
-        or "SMARTBIKE" in value
-        or "SMART_S" in value
-        or "ELECTRIFIED" in value
-    )
-
-
 def _to_int(value):
     if value is None:
         return None
@@ -106,22 +93,6 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 if not client.is_connected:
                     raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
-
-                if _is_s1_bike(self._vanmoof_type):
-                    battery_level = await self._async_read_standard_battery(client)
-                    return {
-                        "available": True,
-                        "battery_level": battery_level,
-                        "module_level": None,
-                        "lock_state": None,
-                        "distance_travelled": None,
-                        "power_level": None,
-                        "region": None,
-                        "light_mode": None,
-                        "module_state": None,
-                        "charging": None,
-                        "errors": None,
-                    }
 
                 if _is_sx3_bike(self._vanmoof_type):
                     sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
@@ -284,10 +255,6 @@ class VanMoofDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             if not client.is_connected:
                 raise UpdateFailed(f"Unable to connect to VanMoof bike {self._mac_address}.")
-
-            if _is_s1_bike(self._vanmoof_type):
-                battery_level = await self._async_read_standard_battery(client)
-                return self._s1_data(battery_level)
 
             if _is_sx3_bike(self._vanmoof_type):
                 sx_client = SX3Client(client, self._encryption_key, self._user_key_id)
